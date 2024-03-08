@@ -87,6 +87,7 @@
 #define USB_HSPHY_1P8_VOL_MAX			1800000 /* uV */
 #define USB_HSPHY_1P8_HPM_LOAD			19000	/* uA */
 
+#define USB2PHY_REFGEN_HPM_LOAD			1200000  /* uA */
 #define USB_HSPHY_VDD_HPM_LOAD			30000	/* uA */
 
 
@@ -112,7 +113,9 @@ struct msm_hsphy {
 	struct regulator	*vdd;
 	struct regulator	*vdda33;
 	struct regulator	*vdda18;
+	struct regulator        *refgen;
 	int			vdd_levels[3]; /* none, low, high */
+	int			refgen_levels[3]; /* 0, REFGEN_VOL_MIN, REFGEN_VOL_MAX */
 
 	bool			clocks_enabled;
 	bool			power_enabled;
@@ -293,8 +296,12 @@ static int vdda33_phy_enable_disable(struct msm_hsphy *phy, bool on)
 {
 	int ret = 0;
 
-	if (!on)
-		goto disable_vdda33;
+	if (!on) {
+		if (phy->refgen)
+			goto disable_refgen;
+		else
+			goto disable_vdda33;
+	}
 
 	if (phy->phy_priv_data == NULL || !phy->phy_priv_data->limit_control_vdda33) {
 		ret = regulator_set_load(phy->vdda33, USB_HSPHY_3P3_HPM_LOAD);
@@ -318,9 +325,47 @@ static int vdda33_phy_enable_disable(struct msm_hsphy *phy, bool on)
 		goto unset_vdd33;
 	}
 
+	if (phy->refgen) {
+		ret = regulator_set_load(phy->refgen, USB2PHY_REFGEN_HPM_LOAD);
+		if (ret < 0) {
+			dev_err(phy->phy.dev, "Unable to set HPM of refgen:%d\n", ret);
+			goto disable_vdda33;
+		}
+
+		ret = regulator_set_voltage(phy->refgen, phy->refgen_levels[1],
+						phy->refgen_levels[2]);
+		if (ret) {
+			dev_err(phy->phy.dev,
+					"Unable to set voltage for refgen:%d\n", ret);
+			goto put_refgen_lpm;
+		}
+
+		ret = regulator_enable(phy->refgen);
+		if (ret) {
+			dev_err(phy->phy.dev, "Unable to enable refgen:%d\n", ret);
+			goto unset_refgen;
+		}
+	}
+
 	dev_dbg(phy->phy.dev, "%s(): HSUSB PHY's vdda33 turned ON.\n", __func__);
 
 	return ret;
+
+disable_refgen:
+	ret = regulator_disable(phy->refgen);
+	if (ret)
+		dev_err(phy->phy.dev, "Unable to disable refgen:%d\n", ret);
+
+unset_refgen:
+	ret = regulator_set_voltage(phy->refgen, phy->refgen_levels[0], phy->refgen_levels[2]);
+	if (ret)
+		dev_err(phy->phy.dev,
+				"Unable to set (0) voltage for refgen:%d\n", ret);
+
+put_refgen_lpm:
+	ret = regulator_set_load(phy->refgen, 0);
+	if (ret < 0)
+		dev_err(phy->phy.dev, "Unable to set (0) HPM of refgen\n");
 
 disable_vdda33:
 	ret = regulator_disable(phy->vdda33);
@@ -832,6 +877,46 @@ static void msm_hsphy_create_debugfs(struct msm_hsphy *phy)
 	debugfs_create_x8("param_ovrd3", 0644, phy->root, &phy->param_ovrd3);
 }
 
+static int usb2_get_regulators(struct msm_hsphy *phy)
+{
+	struct device *dev = phy->phy.dev;
+	int ret = 0;
+
+	phy->refgen = NULL;
+
+	phy->vdd = devm_regulator_get(dev, "vdd");
+	if (IS_ERR(phy->vdd)) {
+		ret = PTR_ERR(phy->vdd);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "unable to get vdd supply\n");
+		return ret;
+	}
+
+	phy->vdda33 = devm_regulator_get(dev, "vdda33");
+	if (IS_ERR(phy->vdda33)) {
+		ret = PTR_ERR(phy->vdda33);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "unable to get vdda33 supply\n");
+		return ret;
+	}
+
+	phy->vdda18 = devm_regulator_get(dev, "vdda18");
+	if (IS_ERR(phy->vdda18)) {
+		ret = PTR_ERR(phy->vdda18);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "unable to get vdda18 supply\n");
+		return ret;
+	}
+
+	if (of_property_read_bool(dev->of_node, "refgen-supply")) {
+		phy->refgen = devm_regulator_get_optional(dev, "refgen");
+		if (IS_ERR(phy->refgen))
+			dev_err(dev, "unable to get refgen supply\n");
+	}
+
+	return 0;
+}
+
 static int msm_hsphy_probe(struct platform_device *pdev)
 {
 	struct msm_hsphy *phy;
@@ -960,26 +1045,15 @@ static int msm_hsphy_probe(struct platform_device *pdev)
 		goto err_ret;
 	}
 
-	phy->vdd = devm_regulator_get(dev, "vdd");
-	if (IS_ERR(phy->vdd)) {
-		dev_err(dev, "unable to get vdd supply\n");
-		ret = PTR_ERR(phy->vdd);
-		goto err_ret;
-	}
+	ret = of_property_read_u32_array(dev->of_node, "qcom,refgen-voltage-level",
+					(u32 *) phy->refgen_levels,
+					ARRAY_SIZE(phy->refgen_levels));
+	if (ret)
+		dev_err(dev, "error reading qcom,refgen-voltage-level property\n");
 
-	phy->vdda33 = devm_regulator_get(dev, "vdda33");
-	if (IS_ERR(phy->vdda33)) {
-		dev_err(dev, "unable to get vdda33 supply\n");
-		ret = PTR_ERR(phy->vdda33);
-		goto err_ret;
-	}
-
-	phy->vdda18 = devm_regulator_get(dev, "vdda18");
-	if (IS_ERR(phy->vdda18)) {
-		dev_err(dev, "unable to get vdda18 supply\n");
-		ret = PTR_ERR(phy->vdda18);
-		goto err_ret;
-	}
+	ret = usb2_get_regulators(phy);
+	if (ret)
+		return ret;
 
 	mutex_init(&phy->phy_lock);
 	platform_set_drvdata(pdev, phy);
