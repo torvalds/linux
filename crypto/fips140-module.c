@@ -358,6 +358,33 @@ static void __init unapply_rodata_relocations(void *section, int section_size,
 	}
 }
 
+enum {
+	PACIASP		= 0xd503233f,
+	AUTIASP		= 0xd50323bf,
+	SCS_PUSH	= 0xf800865e,
+	SCS_POP		= 0xf85f8e5e,
+};
+
+/*
+ * To make the integrity check work with dynamic Shadow Call Stack (SCS),
+ * replace all instructions that push or pop from the SCS with the Pointer
+ * Authentication Code (PAC) instructions that were present originally.
+ */
+static void __init unapply_scs_patch(void *section, int section_size)
+{
+#if defined(CONFIG_ARM64) && defined(CONFIG_UNWIND_PATCH_PAC_INTO_SCS)
+	u32 *insns = section;
+	int i;
+
+	for (i = 0; i < section_size / sizeof(insns[0]); i++) {
+		if (insns[i] == SCS_PUSH)
+			insns[i] = PACIASP;
+		else if (insns[i] == SCS_POP)
+			insns[i] = AUTIASP;
+	}
+#endif
+}
+
 #ifdef CONFIG_CRYPTO_FIPS140_MOD_DEBUG_INTEGRITY_CHECK
 static struct {
 	const void *text;
@@ -459,6 +486,8 @@ static bool __init check_fips140_module_hmac(void)
 	unapply_rodata_relocations(rodatacopy, rodatasize,
 				  offset_to_ptr(&fips140_rela_rodata.offset),
 				  fips140_rela_rodata.count);
+
+	unapply_scs_patch(textcopy, textsize);
 
 	fips140_init_integrity_debug_files(textcopy, textsize,
 					   rodatacopy, rodatasize);
