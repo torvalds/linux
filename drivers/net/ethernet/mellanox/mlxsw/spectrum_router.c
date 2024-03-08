@@ -3083,6 +3083,7 @@ struct mlxsw_sp_nexthop {
 		struct mlxsw_sp_ipip_entry *ipip_entry;
 	};
 	struct mlxsw_sp_nexthop_counter *counter;
+	u32 id;		/* NH ID for members of a NH object group. */
 };
 
 static struct net_device *
@@ -5054,6 +5055,7 @@ mlxsw_sp_nexthop_obj_init(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_nexthop_counter_enable(mlxsw_sp, nh);
 	list_add_tail(&nh->router_list_node, &mlxsw_sp->router->nexthop_list);
 	nh->ifindex = dev->ifindex;
+	nh->id = nh_obj->id;
 
 	err = mlxsw_sp_nexthop_type_init(mlxsw_sp, nh, dev);
 	if (err)
