@@ -4,6 +4,7 @@
  */
 
 #include "dp_panel.h"
+#include "dp_utils.h"
 
 #include <drm/drm_connector.h>
 #include <drm/drm_edid.h>
@@ -57,6 +58,7 @@ static int dp_panel_read_dpcd(struct dp_panel *dp_panel)
 	if (rc)
 		return rc;
 
+	dp_panel->vsc_sdp_supported = drm_dp_vsc_sdp_supported(panel->aux, dpcd);
 	link_info = &dp_panel->link_info;
 	link_info->revision = dpcd[DP_DPCD_REV];
 	major = (link_info->revision >> 4) & 0x0f;
@@ -287,6 +289,53 @@ void dp_panel_tpg_config(struct dp_panel *dp_panel, bool enable)
 	dp_catalog_panel_tpg_enable(catalog, &panel->dp_panel.dp_mode.drm_mode);
 }
 
+static int dp_panel_setup_vsc_sdp_yuv_420(struct dp_panel *dp_panel)
+{
+	struct dp_catalog *catalog;
+	struct dp_panel_private *panel;
+	struct dp_display_mode *dp_mode;
+	struct drm_dp_vsc_sdp vsc_sdp_data;
+	struct dp_sdp vsc_sdp;
+	ssize_t len;
+
+	if (!dp_panel) {
+		DRM_ERROR("invalid input\n");
+		return -EINVAL;
+	}
+
+	panel = container_of(dp_panel, struct dp_panel_private, dp_panel);
+	catalog = panel->catalog;
+	dp_mode = &dp_panel->dp_mode;
+
+	memset(&vsc_sdp_data, 0, sizeof(vsc_sdp_data));
+
+	/* VSC SDP header as per table 2-118 of DP 1.4 specification */
+	vsc_sdp_data.sdp_type = DP_SDP_VSC;
+	vsc_sdp_data.revision = 0x05;
+	vsc_sdp_data.length = 0x13;
+
+	/* VSC SDP Payload for DB16 */
+	vsc_sdp_data.pixelformat = DP_PIXELFORMAT_YUV420;
+	vsc_sdp_data.colorimetry = DP_COLORIMETRY_DEFAULT;
+
+	/* VSC SDP Payload for DB17 */
+	vsc_sdp_data.bpc = dp_mode->bpp / 3;
+	vsc_sdp_data.dynamic_range = DP_DYNAMIC_RANGE_CTA;
+
+	/* VSC SDP Payload for DB18 */
+	vsc_sdp_data.content_type = DP_CONTENT_TYPE_GRAPHICS;
+
+	len = drm_dp_vsc_sdp_pack(&vsc_sdp_data, &vsc_sdp);
+	if (len < 0) {
+		DRM_ERROR("unable to pack vsc sdp\n");
+		return len;
+	}
+
+	dp_catalog_panel_enable_vsc_sdp(catalog, &vsc_sdp);
+
+	return 0;
+}
+
 void dp_panel_dump_regs(struct dp_panel *dp_panel)
 {
 	struct dp_catalog *catalog;
@@ -350,6 +399,10 @@ int dp_panel_timing_cfg(struct dp_panel *dp_panel)
 	catalog->dp_active = data;
 
 	dp_catalog_panel_timing_cfg(catalog);
+
+	if (dp_panel->dp_mode.out_fmt_is_yuv_420)
+		dp_panel_setup_vsc_sdp_yuv_420(dp_panel);
+
 	panel->panel_on = true;
 
 	return 0;

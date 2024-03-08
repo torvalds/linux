@@ -450,9 +450,26 @@ void dp_catalog_ctrl_config_misc(struct dp_catalog *dp_catalog,
 	dp_write_link(catalog, REG_DP_MISC1_MISC0, misc_val);
 }
 
+void dp_catalog_setup_peripheral_flush(struct dp_catalog *dp_catalog)
+{
+	u32 mainlink_ctrl, hw_revision;
+	struct dp_catalog_private *catalog = container_of(dp_catalog,
+				struct dp_catalog_private, dp_catalog);
+
+	mainlink_ctrl = dp_read_link(catalog, REG_DP_MAINLINK_CTRL);
+
+	hw_revision = dp_catalog_hw_revision(dp_catalog);
+	if (hw_revision >= DP_HW_VERSION_1_2)
+		mainlink_ctrl |= DP_MAINLINK_FLUSH_MODE_SDE_PERIPH_UPDATE;
+	else
+		mainlink_ctrl |= DP_MAINLINK_FLUSH_MODE_UPDATE_SDP;
+
+	dp_write_link(catalog, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
+}
+
 void dp_catalog_ctrl_config_msa(struct dp_catalog *dp_catalog,
 					u32 rate, u32 stream_rate_khz,
-					bool fixed_nvid)
+					bool fixed_nvid, bool is_ycbcr_420)
 {
 	u32 pixel_m, pixel_n;
 	u32 mvid, nvid, pixel_div = 0, dispcc_input_rate;
@@ -494,6 +511,9 @@ void dp_catalog_ctrl_config_msa(struct dp_catalog *dp_catalog,
 		mvid = (nvid_fixed / nvid) * mvid;
 		nvid = temp;
 	}
+
+	if (is_ycbcr_420)
+		mvid /= 2;
 
 	if (link_rate_hbr2 == rate)
 		nvid *= 2;
@@ -887,6 +907,99 @@ int dp_catalog_panel_timing_cfg(struct dp_catalog *dp_catalog)
 
 	dp_write_p0(catalog, MMSS_DP_INTF_CONFIG, reg);
 	return 0;
+}
+
+static void dp_catalog_panel_send_vsc_sdp(struct dp_catalog *dp_catalog, struct dp_sdp *vsc_sdp)
+{
+	struct dp_catalog_private *catalog;
+	u32 header[2];
+	u32 val;
+	int i;
+
+	catalog = container_of(dp_catalog, struct dp_catalog_private, dp_catalog);
+
+	dp_utils_pack_sdp_header(&vsc_sdp->sdp_header, header);
+
+	dp_write_link(catalog, MMSS_DP_GENERIC0_0, header[0]);
+	dp_write_link(catalog, MMSS_DP_GENERIC0_1, header[1]);
+
+	for (i = 0; i < sizeof(vsc_sdp->db); i += 4) {
+		val = ((vsc_sdp->db[i]) | (vsc_sdp->db[i + 1] << 8) | (vsc_sdp->db[i + 2] << 16) |
+		       (vsc_sdp->db[i + 3] << 24));
+		dp_write_link(catalog, MMSS_DP_GENERIC0_2 + i, val);
+	}
+}
+
+static void dp_catalog_panel_update_sdp(struct dp_catalog *dp_catalog)
+{
+	struct dp_catalog_private *catalog;
+	u32 hw_revision;
+
+	catalog = container_of(dp_catalog, struct dp_catalog_private, dp_catalog);
+
+	hw_revision = dp_catalog_hw_revision(dp_catalog);
+	if (hw_revision < DP_HW_VERSION_1_2 && hw_revision >= DP_HW_VERSION_1_0) {
+		dp_write_link(catalog, MMSS_DP_SDP_CFG3, 0x01);
+		dp_write_link(catalog, MMSS_DP_SDP_CFG3, 0x00);
+	}
+}
+
+void dp_catalog_panel_enable_vsc_sdp(struct dp_catalog *dp_catalog, struct dp_sdp *vsc_sdp)
+{
+	struct dp_catalog_private *catalog;
+	u32 cfg, cfg2, misc;
+
+	catalog = container_of(dp_catalog, struct dp_catalog_private, dp_catalog);
+
+	cfg = dp_read_link(catalog, MMSS_DP_SDP_CFG);
+	cfg2 = dp_read_link(catalog, MMSS_DP_SDP_CFG2);
+	misc = dp_read_link(catalog, REG_DP_MISC1_MISC0);
+
+	cfg |= GEN0_SDP_EN;
+	dp_write_link(catalog, MMSS_DP_SDP_CFG, cfg);
+
+	cfg2 |= GENERIC0_SDPSIZE_VALID;
+	dp_write_link(catalog, MMSS_DP_SDP_CFG2, cfg2);
+
+	dp_catalog_panel_send_vsc_sdp(dp_catalog, vsc_sdp);
+
+	/* indicates presence of VSC (BIT(6) of MISC1) */
+	misc |= DP_MISC1_VSC_SDP;
+
+	drm_dbg_dp(catalog->drm_dev, "vsc sdp enable=1\n");
+
+	pr_debug("misc settings = 0x%x\n", misc);
+	dp_write_link(catalog, REG_DP_MISC1_MISC0, misc);
+
+	dp_catalog_panel_update_sdp(dp_catalog);
+}
+
+void dp_catalog_panel_disable_vsc_sdp(struct dp_catalog *dp_catalog)
+{
+	struct dp_catalog_private *catalog;
+	u32 cfg, cfg2, misc;
+
+	catalog = container_of(dp_catalog, struct dp_catalog_private, dp_catalog);
+
+	cfg = dp_read_link(catalog, MMSS_DP_SDP_CFG);
+	cfg2 = dp_read_link(catalog, MMSS_DP_SDP_CFG2);
+	misc = dp_read_link(catalog, REG_DP_MISC1_MISC0);
+
+	cfg &= ~GEN0_SDP_EN;
+	dp_write_link(catalog, MMSS_DP_SDP_CFG, cfg);
+
+	cfg2 &= ~GENERIC0_SDPSIZE_VALID;
+	dp_write_link(catalog, MMSS_DP_SDP_CFG2, cfg2);
+
+	/* switch back to MSA */
+	misc &= ~DP_MISC1_VSC_SDP;
+
+	drm_dbg_dp(catalog->drm_dev, "vsc sdp enable=0\n");
+
+	pr_debug("misc settings = 0x%x\n", misc);
+	dp_write_link(catalog, REG_DP_MISC1_MISC0, misc);
+
+	dp_catalog_panel_update_sdp(dp_catalog);
 }
 
 void dp_catalog_panel_tpg_enable(struct dp_catalog *dp_catalog,
