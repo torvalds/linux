@@ -845,12 +845,6 @@ verify_listener_events()
 	local saddr
 	local sport
 
-	if [ $e_type = $LISTENER_CREATED ]; then
-		print_test "CREATE_LISTENER $e_saddr:$e_sport"
-	elif [ $e_type = $LISTENER_CLOSED ]; then
-		print_test "CLOSE_LISTENER $e_saddr:$e_sport"
-	fi
-
 	type=$(mptcp_lib_evts_get_info type $evt $e_type)
 	family=$(mptcp_lib_evts_get_info family $evt $e_type)
 	sport=$(mptcp_lib_evts_get_info sport $evt $e_type)
@@ -882,6 +876,7 @@ test_listener()
 	local listener_pid=$!
 
 	sleep 0.5
+	print_test "CREATE_LISTENER 10.0.2.2:$client4_port"
 	verify_listener_events $client_evts $LISTENER_CREATED $AF_INET 10.0.2.2 $client4_port
 
 	# ADD_ADDR from client to server machine reusing the subflow port
@@ -898,6 +893,7 @@ test_listener()
 	mptcp_lib_kill_wait $listener_pid
 
 	sleep 0.5
+	print_test "CLOSE_LISTENER 10.0.2.2:$client4_port"
 	verify_listener_events $client_evts $LISTENER_CLOSED $AF_INET 10.0.2.2 $client4_port
 }
 
