@@ -512,6 +512,8 @@ void erofs_fscache_unregister_fs(struct super_block *sb);
 struct erofs_fscache *erofs_fscache_register_cookie(struct super_block *sb,
 					char *name, unsigned int flags);
 void erofs_fscache_unregister_cookie(struct erofs_fscache *fscache);
+struct bio *erofs_fscache_bio_alloc(struct erofs_map_dev *mdev);
+void erofs_fscache_submit_bio(struct bio *bio);
 #else
 static inline int erofs_fscache_register_fs(struct super_block *sb)
 {
@@ -529,6 +531,8 @@ struct erofs_fscache *erofs_fscache_register_cookie(struct super_block *sb,
 static inline void erofs_fscache_unregister_cookie(struct erofs_fscache *fscache)
 {
 }
+static inline struct bio *erofs_fscache_bio_alloc(struct erofs_map_dev *mdev) { return NULL; }
+static inline void erofs_fscache_submit_bio(struct bio *bio) {}
 #endif
 
 #define EFSCORRUPTED    EUCLEAN         /* Filesystem is corrupted */

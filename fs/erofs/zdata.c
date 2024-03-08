@@ -1561,7 +1561,7 @@ static void move_to_bypass_jobqueue(struct z_erofs_pcluster *pcl,
 	qtail[JQ_BYPASS] = &pcl->next;
 }
 
-static void z_erofs_submissionqueue_endio(struct bio *bio)
+static void z_erofs_endio(struct bio *bio)
 {
 	struct z_erofs_decompressqueue *q = bio->bi_private;
 	blk_status_t err = bio->bi_status;
@@ -1582,7 +1582,8 @@ static void z_erofs_submissionqueue_endio(struct bio *bio)
 	if (err)
 		q->eio = true;
 	z_erofs_decompress_kickoff(q, -1);
-	bio_put(bio);
+	if (bio->bi_bdev)
+		bio_put(bio);
 }
 
 static void z_erofs_submit_queue(struct z_erofs_decompress_frontend *f,
@@ -1596,7 +1597,6 @@ static void z_erofs_submit_queue(struct z_erofs_decompress_frontend *f,
 	z_erofs_next_pcluster_t owned_head = f->owned_head;
 	/* bio is NULL initially, so no need to initialize last_{index,bdev} */
 	erofs_off_t last_pa;
-	struct block_device *last_bdev;
 	unsigned int nr_bios = 0;
 	struct bio *bio = NULL;
 	unsigned long pflags;
@@ -1643,9 +1643,13 @@ static void z_erofs_submit_queue(struct z_erofs_decompress_frontend *f,
 				continue;
 
 			if (bio && (cur != last_pa ||
-				    last_bdev != mdev.m_bdev)) {
-submit_bio_retry:
-				submit_bio(bio);
+				    bio->bi_bdev != mdev.m_bdev)) {
+io_retry:
+				if (!erofs_is_fscache_mode(sb))
+					submit_bio(bio);
+				else
+					erofs_fscache_submit_bio(bio);
+
 				if (memstall) {
 					psi_memstall_leave(&pflags);
 					memstall = 0;
@@ -1660,15 +1664,16 @@ submit_bio_retry:
 			}
 
 			if (!bio) {
-				bio = bio_alloc(mdev.m_bdev, BIO_MAX_VECS,
-						REQ_OP_READ, GFP_NOIO);
-				bio->bi_end_io = z_erofs_submissionqueue_endio;
+				bio = erofs_is_fscache_mode(sb) ?
+					erofs_fscache_bio_alloc(&mdev) :
+					bio_alloc(mdev.m_bdev, BIO_MAX_VECS,
+						  REQ_OP_READ, GFP_NOIO);
+				bio->bi_end_io = z_erofs_endio;
 				bio->bi_iter.bi_sector = cur >> 9;
 				bio->bi_private = q[JQ_SUBMIT];
 				if (readahead)
 					bio->bi_opf |= REQ_RAHEAD;
 				++nr_bios;
-				last_bdev = mdev.m_bdev;
 			}
 
 			if (cur + bvec.bv_len > end)
@@ -1676,7 +1681,7 @@ submit_bio_retry:
 			DBG_BUGON(bvec.bv_len < sb->s_blocksize);
 			if (!bio_add_page(bio, bvec.bv_page, bvec.bv_len,
 					  bvec.bv_offset))
-				goto submit_bio_retry;
+				goto io_retry;
 
 			last_pa = cur + bvec.bv_len;
 			bypass = false;
@@ -1689,7 +1694,10 @@ submit_bio_retry:
 	} while (owned_head != Z_EROFS_PCLUSTER_TAIL);
 
 	if (bio) {
-		submit_bio(bio);
+		if (!erofs_is_fscache_mode(sb))
+			submit_bio(bio);
+		else
+			erofs_fscache_submit_bio(bio);
 		if (memstall)
 			psi_memstall_leave(&pflags);
 	}
