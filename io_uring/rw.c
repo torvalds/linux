@@ -933,8 +933,6 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 	 */
 	if (!io_file_can_poll(req))
 		return -EBADFD;
-	if (issue_flags & IO_URING_F_IOWQ)
-		return -EAGAIN;
 
 	ret = __io_read(req, issue_flags);
 
