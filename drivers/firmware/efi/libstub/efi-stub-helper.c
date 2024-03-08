@@ -11,6 +11,7 @@
 
 #include <linux/efi.h>
 #include <linux/kernel.h>
+#include <linux/overflow.h>
 #include <asm/efi.h>
 #include <asm/setup.h>
 
@@ -219,23 +220,24 @@ static const struct {
 	},
 };
 
+struct efistub_measured_event {
+	efi_tcg2_event_t	event_data;
+	TCG_PCClientTaggedEvent tagged_event __packed;
+};
+
 static efi_status_t efi_measure_tagged_event(unsigned long load_addr,
 					     unsigned long load_size,
 					     enum efistub_event event)
 {
+	struct efistub_measured_event *evt;
+	int size = struct_size(evt, tagged_event.tagged_event_data,
+			       events[event].event_data_len);
 	efi_guid_t tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
 	efi_tcg2_protocol_t *tcg2 = NULL;
 	efi_status_t status;
 
 	efi_bs_call(locate_protocol, &tcg2_guid, NULL, (void **)&tcg2);
 	if (tcg2) {
-		struct efi_measured_event {
-			efi_tcg2_event_t	event_data;
-			efi_tcg2_tagged_event_t tagged_event;
-			u8			tagged_event_data[];
-		} *evt;
-		int size = sizeof(*evt) + events[event].event_data_len;
-
 		status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
 				     (void **)&evt);
 		if (status != EFI_SUCCESS)
@@ -249,12 +251,12 @@ static efi_status_t efi_measure_tagged_event(unsigned long load_addr,
 			.event_header.event_type	= EV_EVENT_TAG,
 		};
 
-		evt->tagged_event = (struct efi_tcg2_tagged_event){
+		evt->tagged_event = (TCG_PCClientTaggedEvent){
 			.tagged_event_id		= events[event].event_id,
 			.tagged_event_data_size		= events[event].event_data_len,
 		};
 
-		memcpy(evt->tagged_event_data, events[event].event_data,
+		memcpy(evt->tagged_event.tagged_event_data, events[event].event_data,
 		       events[event].event_data_len);
 
 		status = efi_call_proto(tcg2, hash_log_extend_event, 0,
