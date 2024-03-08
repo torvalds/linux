@@ -1773,6 +1773,9 @@ static int netlink_getsockopt(struct socket *sock, int level, int optname,
 		netlink_unlock_table();
 		return err;
 	}
+	case NETLINK_LISTEN_ALL_NSID:
+		flag = NETLINK_F_LISTEN_ALL_NSID;
+		break;
 	case NETLINK_CAP_ACK:
 		flag = NETLINK_F_CAP_ACK;
 		break;
