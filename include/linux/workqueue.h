@@ -185,6 +185,9 @@ struct workqueue_attrs {
 	 * Below fields aren't properties of a worker_pool. They only modify how
 	 * :c:func:`apply_workqueue_attrs` select pools and thus don't
 	 * participate in pool hash calculations or equality comparisons.
+	 *
+	 * If @affn_strict is set, @cpumask isn't a property of a worker_pool
+	 * either.
 	 */
 
 	/**
