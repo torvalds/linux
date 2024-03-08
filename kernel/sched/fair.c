@@ -12409,9 +12409,12 @@ out:
 }
 
 /*
- * This softirq may be triggered from the scheduler tick, or by
- * any of the flags in NOHZ_KICK_MASK: NOHZ_BALANCE_KICK,
- * NOHZ_STATS_KICK or NOHZ_NEXT_KICK.
+ * This softirq handler is triggered via SCHED_SOFTIRQ from two places:
+ *
+ * - directly from the local scheduler_tick() for periodic load balancing
+ *
+ * - indirectly from a remote scheduler_tick() for NOHZ idle balancing
+ *   through the SMP cross-call nohz_csd_func()
  */
 static __latent_entropy void run_rebalance_domains(struct softirq_action *h)
 {
