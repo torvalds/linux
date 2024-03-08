@@ -1,12 +1,14 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+# Double quotes to prevent globbing and word splitting is recommended in new
+# code but we accept it, especially because there were too many before having
+# address all other issues detected by shellcheck.
+#shellcheck disable=SC2086
+
 . "$(dirname "${0}")/mptcp_lib.sh"
 
-sec=$(date +%s)
-rndh=$(printf %x $sec)-$(mktemp -u XXXXXX)
-ns="ns1-$rndh"
-ksft_skip=4
+ns=""
 test_cnt=1
 timeout_poll=30
 timeout_test=$((timeout_poll * 2 + 1))
@@ -26,25 +28,17 @@ flush_pids()
 	done
 }
 
+# This function is used in the cleanup trap
+#shellcheck disable=SC2317
 cleanup()
 {
 	ip netns pids "${ns}" | xargs --no-run-if-empty kill -SIGKILL &>/dev/null
 
-	ip netns del $ns
+	mptcp_lib_ns_exit "${ns}"
 }
 
 mptcp_lib_check_mptcp
-
-ip -Version > /dev/null 2>&1
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
-	exit $ksft_skip
-fi
-ss -h | grep -q MPTCP
-if [ $? -ne 0 ];then
-	echo "SKIP: ss tool does not support MPTCP"
-	exit $ksft_skip
-fi
+mptcp_lib_check_tools ip ss
 
 get_msk_inuse()
 {
@@ -186,7 +180,7 @@ chk_msk_inuse()
 	expected=$((expected + listen_nr))
 
 	for _ in $(seq 10); do
-		if [ $(get_msk_inuse) -eq $expected ];then
+		if [ "$(get_msk_inuse)" -eq $expected ]; then
 			break
 		fi
 		sleep 0.1
@@ -224,8 +218,7 @@ wait_connected()
 }
 
 trap cleanup EXIT
-ip netns add $ns
-ip -n $ns link set dev lo up
+mptcp_lib_ns_init ns
 
 echo "a" | \
 	timeout ${timeout_test} \
@@ -273,7 +266,7 @@ chk_msk_inuse 0 "1->0"
 chk_msk_cestab 0 "1->0"
 
 NR_CLIENTS=100
-for I in `seq 1 $NR_CLIENTS`; do
+for I in $(seq 1 $NR_CLIENTS); do
 	echo "a" | \
 		timeout ${timeout_test} \
 			ip netns exec $ns \
@@ -282,7 +275,7 @@ for I in `seq 1 $NR_CLIENTS`; do
 done
 mptcp_lib_wait_local_port_listen $ns $((NR_CLIENTS + 10001))
 
-for I in `seq 1 $NR_CLIENTS`; do
+for I in $(seq 1 $NR_CLIENTS); do
 	echo "b" | \
 		timeout ${timeout_test} \
 			ip netns exec $ns \
