@@ -176,13 +176,15 @@ MLXSW_ITEM32(tx, hdr, fid, 0x08, 16, 16);
 MLXSW_ITEM32(tx, hdr, type, 0x0C, 0, 4);
 
 int mlxsw_sp_flow_counter_get(struct mlxsw_sp *mlxsw_sp,
-			      unsigned int counter_index, u64 *packets,
-			      u64 *bytes)
+			      unsigned int counter_index, bool clear,
+			      u64 *packets, u64 *bytes)
 {
+	enum mlxsw_reg_mgpc_opcode op = clear ? MLXSW_REG_MGPC_OPCODE_CLEAR :
+						MLXSW_REG_MGPC_OPCODE_NOP;
 	char mgpc_pl[MLXSW_REG_MGPC_LEN];
 	int err;
 
-	mlxsw_reg_mgpc_pack(mgpc_pl, counter_index, MLXSW_REG_MGPC_OPCODE_NOP,
+	mlxsw_reg_mgpc_pack(mgpc_pl, counter_index, op,
 			    MLXSW_REG_FLOW_COUNTER_SET_TYPE_PACKETS_BYTES);
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(mgpc), mgpc_pl);
 	if (err)

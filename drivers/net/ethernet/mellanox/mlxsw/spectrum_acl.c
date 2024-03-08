@@ -1024,7 +1024,7 @@ int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
 	rulei = mlxsw_sp_acl_rule_rulei(rule);
 	if (rulei->counter_valid) {
 		err = mlxsw_sp_flow_counter_get(mlxsw_sp, rulei->counter_index,
-						&current_packets,
+						false, &current_packets,
 						&current_bytes);
 		if (err)
 			return err;

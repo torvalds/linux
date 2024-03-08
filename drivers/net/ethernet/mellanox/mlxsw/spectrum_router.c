@@ -2251,7 +2251,7 @@ int mlxsw_sp_neigh_counter_get(struct mlxsw_sp *mlxsw_sp,
 		return -EINVAL;
 
 	return mlxsw_sp_flow_counter_get(mlxsw_sp, neigh_entry->counter_index,
-					 p_counter, NULL);
+					 false, p_counter, NULL);
 }
 
 static struct mlxsw_sp_neigh_entry *
@@ -3186,7 +3186,7 @@ int mlxsw_sp_nexthop_counter_get(struct mlxsw_sp *mlxsw_sp,
 		return -EINVAL;
 
 	return mlxsw_sp_flow_counter_get(mlxsw_sp, nh->counter_index,
-					 p_counter, NULL);
+					 false, p_counter, NULL);
 }
 
 struct mlxsw_sp_nexthop *mlxsw_sp_nexthop_next(struct mlxsw_sp_router *router,
