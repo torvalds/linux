@@ -141,8 +141,9 @@
 #define ICL_PORT_TX_DW6_AUX(phy)		_MMIO(_ICL_PORT_TX_DW_AUX(6, phy))
 #define ICL_PORT_TX_DW6_GRP(phy)		_MMIO(_ICL_PORT_TX_DW_GRP(6, phy))
 #define ICL_PORT_TX_DW6_LN(ln, phy)		_MMIO(_ICL_PORT_TX_DW_LN(6, ln, phy))
-#define   ICL_AUX_ANAOVRD1_LDO_BYPASS		REG_BIT(7)
-#define   ICL_AUX_ANAOVRD1_ENABLE		REG_BIT(0)
+#define   O_FUNC_OVRD_EN			REG_BIT(7)
+#define   O_LDO_REF_SEL_CRI			REG_GENMASK(6, 1)
+#define   O_LDO_BYPASS_CRI			REG_BIT(0)
 
 #define ICL_PORT_TX_DW7_AUX(phy)		_MMIO(_ICL_PORT_TX_DW_AUX(7, phy))
 #define ICL_PORT_TX_DW7_GRP(phy)		_MMIO(_ICL_PORT_TX_DW_GRP(7, phy))

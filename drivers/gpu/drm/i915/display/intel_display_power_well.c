@@ -425,7 +425,7 @@ icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 	if (pw_idx >= ICL_PW_CTL_IDX_AUX_A && pw_idx <= ICL_PW_CTL_IDX_AUX_B &&
 	    !intel_aux_ch_is_edp(dev_priv, ICL_AUX_PW_TO_CH(pw_idx)))
 		intel_de_rmw(dev_priv, ICL_PORT_TX_DW6_AUX(ICL_AUX_PW_TO_PHY(pw_idx)),
-			     0, ICL_AUX_ANAOVRD1_ENABLE | ICL_AUX_ANAOVRD1_LDO_BYPASS);
+			     0, O_FUNC_OVRD_EN | O_LDO_BYPASS_CRI);
 }
 
 static void
