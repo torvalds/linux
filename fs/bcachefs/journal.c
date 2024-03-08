@@ -84,12 +84,8 @@ static void bch2_journal_buf_to_text(struct printbuf *out, struct journal *j, u6
 		prt_str(out, "separate_flush ");
 	if (buf->need_flush_to_write_buffer)
 		prt_str(out, "need_flush_to_write_buffer ");
-	if (buf->need_flush_to_write_buffer)
-		prt_str(out, "need_flush_to_write_buffer ");
-	if (buf->write_done)
-		prt_str(out, "write done ");
 	if (buf->write_started)
-		prt_str(out, "write started ");
+		prt_str(out, "write_started ");
 	if (buf->write_allocated)
 		prt_str(out, "write allocated ");
 	if (buf->write_done)
