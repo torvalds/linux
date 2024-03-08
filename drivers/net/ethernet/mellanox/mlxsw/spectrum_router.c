@@ -3049,6 +3049,8 @@ struct mlxsw_sp_nexthop_key {
 	struct fib_nh *fib_nh;
 };
 
+struct mlxsw_sp_nexthop_counter;
+
 struct mlxsw_sp_nexthop {
 	struct list_head neigh_list_node; /* member of neigh entry list */
 	struct list_head crif_list_node;
@@ -3080,8 +3082,7 @@ struct mlxsw_sp_nexthop {
 		struct mlxsw_sp_neigh_entry *neigh_entry;
 		struct mlxsw_sp_ipip_entry *ipip_entry;
 	};
-	unsigned int counter_index;
-	bool counter_valid;
+	struct mlxsw_sp_nexthop_counter *counter;
 };
 
 static struct net_device *
@@ -3151,13 +3152,46 @@ struct mlxsw_sp_nexthop_group {
 	bool can_destroy;
 };
 
+struct mlxsw_sp_nexthop_counter {
+	unsigned int counter_index;
+};
+
+static struct mlxsw_sp_nexthop_counter *
+mlxsw_sp_nexthop_counter_alloc(struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_nexthop_counter *nhct;
+	int err;
+
+	nhct = kzalloc(sizeof(*nhct), GFP_KERNEL);
+	if (!nhct)
+		return ERR_PTR(-ENOMEM);
+
+	err = mlxsw_sp_flow_counter_alloc(mlxsw_sp, &nhct->counter_index);
+	if (err)
+		goto err_counter_alloc;
+
+	return nhct;
+
+err_counter_alloc:
+	kfree(nhct);
+	return ERR_PTR(err);
+}
+
+static void
+mlxsw_sp_nexthop_counter_free(struct mlxsw_sp *mlxsw_sp,
+			      struct mlxsw_sp_nexthop_counter *nhct)
+{
+	mlxsw_sp_flow_counter_free(mlxsw_sp, nhct->counter_index);
+	kfree(nhct);
+}
+
 int mlxsw_sp_nexthop_counter_enable(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_nexthop *nh)
 {
+	struct mlxsw_sp_nexthop_counter *nhct;
 	struct devlink *devlink;
-	int err;
 
-	if (nh->counter_valid)
+	if (nh->counter)
 		return 0;
 
 	devlink = priv_to_devlink(mlxsw_sp->core);
@@ -3165,30 +3199,30 @@ int mlxsw_sp_nexthop_counter_enable(struct mlxsw_sp *mlxsw_sp,
 						 MLXSW_SP_DPIPE_TABLE_NAME_ADJ))
 		return 0;
 
-	err = mlxsw_sp_flow_counter_alloc(mlxsw_sp, &nh->counter_index);
-	if (err)
-		return err;
+	nhct = mlxsw_sp_nexthop_counter_alloc(mlxsw_sp);
+	if (IS_ERR(nhct))
+		return PTR_ERR(nhct);
 
-	nh->counter_valid = true;
+	nh->counter = nhct;
 	return 0;
 }
 
 void mlxsw_sp_nexthop_counter_disable(struct mlxsw_sp *mlxsw_sp,
 				      struct mlxsw_sp_nexthop *nh)
 {
-	if (!nh->counter_valid)
+	if (!nh->counter)
 		return;
-	mlxsw_sp_flow_counter_free(mlxsw_sp, nh->counter_index);
-	nh->counter_valid = false;
+	mlxsw_sp_nexthop_counter_free(mlxsw_sp, nh->counter);
+	nh->counter = NULL;
 }
 
 int mlxsw_sp_nexthop_counter_get(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_nexthop *nh, u64 *p_counter)
 {
-	if (!nh->counter_valid)
+	if (!nh->counter)
 		return -EINVAL;
 
-	return mlxsw_sp_flow_counter_get(mlxsw_sp, nh->counter_index,
+	return mlxsw_sp_flow_counter_get(mlxsw_sp, nh->counter->counter_index,
 					 false, p_counter, NULL);
 }
 
@@ -3662,8 +3696,9 @@ static int __mlxsw_sp_nexthop_eth_update(struct mlxsw_sp *mlxsw_sp,
 		WARN_ON_ONCE(1);
 		return -EINVAL;
 	}
-	if (nh->counter_valid)
-		mlxsw_reg_ratr_counter_pack(ratr_pl, nh->counter_index, true);
+	if (nh->counter)
+		mlxsw_reg_ratr_counter_pack(ratr_pl, nh->counter->counter_index,
+					    true);
 	else
 		mlxsw_reg_ratr_counter_pack(ratr_pl, 0, false);
 
