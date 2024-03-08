@@ -1339,6 +1339,10 @@ enum {
  */
 #define BPF_PSEUDO_KFUNC_CALL	2
 
+enum bpf_addr_space_cast {
+	BPF_ADDR_SPACE_CAST = 1,
+};
+
 /* flags for BPF_MAP_UPDATE_ELEM command */
 enum {
 	BPF_ANY		= 0, /* create new element or update existing */
