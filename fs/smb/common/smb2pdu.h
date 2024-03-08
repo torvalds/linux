@@ -238,8 +238,8 @@ struct smb2_compression_transform_hdr_chained {
 
 /* See MS-SMB2 2.2.42.2.2 */
 struct compression_pattern_payload_v1 {
-	__le16	Pattern;
-	__le16	Reserved1;
+	__u8	Pattern;
+	__u8	Reserved1;
 	__le16	Reserved2;
 	__le32	Repetitions;
 } __packed;
