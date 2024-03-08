@@ -343,6 +343,49 @@ l_true:												\
 	asm volatile("%[reg]=%[reg]"::[reg]"r"((short)var))
 #endif
 
+/* emit instruction:
+ * rX = rX .off = BPF_ADDR_SPACE_CAST .imm32 = (dst_as << 16) | src_as
+ */
+#ifndef bpf_addr_space_cast
+#define bpf_addr_space_cast(var, dst_as, src_as)\
+	asm volatile(".byte 0xBF;		\
+		     .ifc %[reg], r0;		\
+		     .byte 0x00;		\
+		     .endif;			\
+		     .ifc %[reg], r1;		\
+		     .byte 0x11;		\
+		     .endif;			\
+		     .ifc %[reg], r2;		\
+		     .byte 0x22;		\
+		     .endif;			\
+		     .ifc %[reg], r3;		\
+		     .byte 0x33;		\
+		     .endif;			\
+		     .ifc %[reg], r4;		\
+		     .byte 0x44;		\
+		     .endif;			\
+		     .ifc %[reg], r5;		\
+		     .byte 0x55;		\
+		     .endif;			\
+		     .ifc %[reg], r6;		\
+		     .byte 0x66;		\
+		     .endif;			\
+		     .ifc %[reg], r7;		\
+		     .byte 0x77;		\
+		     .endif;			\
+		     .ifc %[reg], r8;		\
+		     .byte 0x88;		\
+		     .endif;			\
+		     .ifc %[reg], r9;		\
+		     .byte 0x99;		\
+		     .endif;			\
+		     .short %[off];		\
+		     .long %[as]"		\
+		     : [reg]"+r"(var)		\
+		     : [off]"i"(BPF_ADDR_SPACE_CAST) \
+		     , [as]"i"((dst_as << 16) | src_as));
+#endif
+
 /* Description
  *	Assert that a conditional expression is true.
  * Returns
