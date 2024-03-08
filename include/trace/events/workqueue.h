@@ -64,13 +64,15 @@ TRACE_EVENT(workqueue_activate_work,
 
 	TP_STRUCT__entry(
 		__field( void *,	work	)
+		__field( void *,	function)
 	),
 
 	TP_fast_assign(
 		__entry->work		= work;
+		__entry->function	= work->func;
 	),
 
-	TP_printk("work struct %p", __entry->work)
+	TP_printk("work struct %p function=%ps ", __entry->work, __entry->function)
 );
 
 /**
