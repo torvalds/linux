@@ -1034,7 +1034,6 @@ struct ieee80211_link_data {
 	struct ieee80211_key __rcu *default_beacon_key;
 
 	struct wiphy_work csa_finalize_work;
-	bool csa_block_tx;
 
 	bool operating_11g_mode;
 
@@ -1092,6 +1091,8 @@ struct ieee80211_sub_if_data {
 	unsigned int flags;
 
 	unsigned long state;
+
+	bool csa_blocked_tx;
 
 	char name[IFNAMSIZ];
 
@@ -1766,12 +1767,6 @@ struct ieee802_11_elems {
 	size_t ml_basic_len;
 	size_t ml_reconf_len;
 
-	/* The basic Multi-Link element in the original IEs */
-	const struct element *ml_basic_elem;
-
-	/* The reconfiguration Multi-Link element in the original IEs */
-	const struct element *ml_reconf_elem;
-
 	u8 ttlm_num;
 
 	/*
@@ -1784,14 +1779,6 @@ struct ieee802_11_elems {
 
 	/* whether/which parse error occurred while retrieving these elements */
 	u8 parse_error;
-
-	/*
-	 * scratch buffer that can be used for various element parsing related
-	 * tasks, e.g., element de-fragmentation etc.
-	 */
-	size_t scratch_len;
-	u8 *scratch_pos;
-	u8 scratch[] __counted_by(scratch_len);
 };
 
 static inline struct ieee80211_local *hw_to_local(
@@ -2153,7 +2140,7 @@ enum ieee80211_sta_rx_bandwidth
 ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta);
 enum ieee80211_sta_rx_bandwidth
 ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta);
-void ieee80211_sta_set_rx_nss(struct link_sta_info *link_sta);
+void ieee80211_sta_init_nss(struct link_sta_info *link_sta);
 enum ieee80211_sta_rx_bandwidth
 ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width);
 enum nl80211_chan_width
@@ -2624,7 +2611,7 @@ int ieee80211_tdls_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 void ieee80211_tdls_cancel_channel_switch(struct wiphy *wiphy,
 					  struct net_device *dev,
 					  const u8 *addr);
-void ieee80211_teardown_tdls_peers(struct ieee80211_sub_if_data *sdata);
+void ieee80211_teardown_tdls_peers(struct ieee80211_link_data *link);
 void ieee80211_tdls_handle_disconnect(struct ieee80211_sub_if_data *sdata,
 				      const u8 *peer, u16 reason);
 void

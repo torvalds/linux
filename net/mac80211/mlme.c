@@ -1319,7 +1319,8 @@ static size_t ieee80211_assoc_link_elems(struct ieee80211_sub_if_data *sdata,
 						offset);
 
 	if (sband->band != NL80211_BAND_6GHZ &&
-	    assoc_data->link[link_id].conn.mode >= IEEE80211_CONN_MODE_VHT) {
+	    assoc_data->link[link_id].conn.mode >= IEEE80211_CONN_MODE_VHT &&
+	    sband->vht_cap.vht_supported) {
 		bool mu_mimo_owner =
 			ieee80211_add_vht_ie(sdata, skb, sband,
 					     &assoc_data->link[link_id].ap_vht_cap,
@@ -1925,19 +1926,14 @@ static void ieee80211_chswitch_post_beacon(struct ieee80211_link_data *link)
 
 	WARN_ON(!link->conf->csa_active);
 
-	if (link->csa_block_tx) {
+	if (sdata->csa_blocked_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		link->csa_block_tx = false;
+		sdata->csa_blocked_tx = false;
 	}
 
 	link->conf->csa_active = false;
 	link->u.mgd.csa_waiting_bcn = false;
-	/*
-	 * If the CSA IE is still present on the beacon after the switch,
-	 * we need to consider it as a new CSA (possibly to self).
-	 */
-	link->u.mgd.beacon_crc_valid = false;
 
 	ret = drv_post_channel_switch(link);
 	if (ret) {
@@ -1996,14 +1992,15 @@ ieee80211_sta_abort_chanswitch(struct ieee80211_link_data *link)
 
 	ieee80211_link_unreserve_chanctx(link);
 
-	if (link->csa_block_tx)
+	if (sdata->csa_blocked_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
+		sdata->csa_blocked_tx = false;
+	}
 
-	link->csa_block_tx = false;
 	link->conf->csa_active = false;
 
-	drv_abort_channel_switch(sdata);
+	drv_abort_channel_switch(link);
 }
 
 static void
@@ -2020,7 +2017,9 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	struct ieee80211_chanctx *chanctx;
 	enum nl80211_band current_band;
 	struct ieee80211_csa_ie csa_ie;
-	struct ieee80211_channel_switch ch_switch;
+	struct ieee80211_channel_switch ch_switch = {
+		.link_id = link->link_id,
+	};
 	struct ieee80211_bss *bss;
 	unsigned long timeout;
 	int res;
@@ -2049,17 +2048,31 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	if (res < 0)
 		goto drop_connection;
 
-	if (beacon && link->conf->csa_active &&
-	    !link->u.mgd.csa_waiting_bcn) {
-		if (res)
+	if (link->conf->csa_active) {
+		/* already processing - disregard action frames */
+		if (!beacon)
+			return;
+
+		if (link->u.mgd.csa_waiting_bcn) {
+			ieee80211_chswitch_post_beacon(link);
+			/*
+			 * If the CSA IE is still present in the beacon after
+			 * the switch, we need to consider it as a new CSA
+			 * (possibly to self) - this happens by not returning
+			 * here so we'll get to the check below.
+			 */
+		} else if (res) {
 			ieee80211_sta_abort_chanswitch(link);
-		else
+			return;
+		} else {
 			drv_channel_switch_rx_beacon(sdata, &ch_switch);
-		return;
-	} else if (link->conf->csa_active || res) {
-		/* disregard subsequent announcements if already processing */
-		return;
+			return;
+		}
 	}
+
+	/* nothing to do at all - no active CSA nor a new one */
+	if (res)
+		return;
 
 	if (link->conf->chanreq.oper.chan->band !=
 	    csa_ie.chanreq.oper.chan->band) {
@@ -2102,12 +2115,13 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	}
 
 	/*
-	 * Drop all TDLS peers - either we disconnect or move to a different
-	 * channel from this point on. There's no telling what our peer will do.
+	 * Drop all TDLS peers on the affected link - either we disconnect or
+	 * move to a different channel from this point on. There's no telling
+	 * what our peer will do.
 	 * The TDLS WIDER_BW scenario is also problematic, as peers might now
 	 * have an incompatible wider chandef.
 	 */
-	ieee80211_teardown_tdls_peers(sdata);
+	ieee80211_teardown_tdls_peers(link);
 
 	conf = rcu_dereference_protected(link->conf->chanctx_conf,
 					 lockdep_is_held(&local->hw.wiphy->mtx));
@@ -2142,13 +2156,15 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 
 	link->conf->csa_active = true;
 	link->csa_chanreq = csa_ie.chanreq;
-	link->csa_block_tx = csa_ie.mode;
 	link->u.mgd.csa_ignored_same_chan = false;
 	link->u.mgd.beacon_crc_valid = false;
 
-	if (link->csa_block_tx)
+	if (csa_ie.mode &&
+	    !ieee80211_hw_check(&local->hw, HANDLES_QUIET_CSA)) {
 		ieee80211_stop_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
+		sdata->csa_blocked_tx = true;
+	}
 
 	cfg80211_ch_switch_started_notify(sdata->dev, &csa_ie.chanreq.oper,
 					  link->link_id, csa_ie.count,
@@ -2176,7 +2192,8 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	 * reset when the disconnection worker runs.
 	 */
 	link->conf->csa_active = true;
-	link->csa_block_tx = csa_ie.mode;
+	sdata->csa_blocked_tx =
+		csa_ie.mode && !ieee80211_hw_check(&local->hw, HANDLES_QUIET_CSA);
 
 	wiphy_work_queue(sdata->local->hw.wiphy,
 			 &ifmgd->csa_connection_drop_work);
@@ -3230,10 +3247,10 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.bss_conf.csa_active = false;
 	sdata->deflink.u.mgd.csa_waiting_bcn = false;
 	sdata->deflink.u.mgd.csa_ignored_same_chan = false;
-	if (sdata->deflink.csa_block_tx) {
+	if (sdata->csa_blocked_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->deflink.csa_block_tx = false;
+		sdata->csa_blocked_tx = false;
 	}
 
 	/* existing TX TSPEC sessions no longer exist */
@@ -3546,9 +3563,12 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 	if (!ifmgd->associated)
 		return;
 
-	/* in MLO assume we have a link where we can TX the frame */
-	tx = ieee80211_vif_is_mld(&sdata->vif) ||
-		!sdata->deflink.csa_block_tx;
+	/*
+	 * MLO drivers should have HANDLES_QUIET_CSA, so that csa_blocked_tx
+	 * is always false; if they don't then this may try to transmit the
+	 * frame but queues will be stopped.
+	 */
+	tx = !sdata->csa_blocked_tx;
 
 	if (!ifmgd->driver_disconnect) {
 		unsigned int link_id;
@@ -3581,10 +3601,10 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 	/* the other links will be destroyed */
 	sdata->vif.bss_conf.csa_active = false;
 	sdata->deflink.u.mgd.csa_waiting_bcn = false;
-	if (sdata->deflink.csa_block_tx) {
+	if (sdata->csa_blocked_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->deflink.csa_block_tx = false;
+		sdata->csa_blocked_tx = false;
 	}
 
 	ieee80211_report_disconnect(sdata, frame_buf, sizeof(frame_buf), tx,
@@ -5751,9 +5771,7 @@ out:
 static void ieee80211_ml_reconfiguration(struct ieee80211_sub_if_data *sdata,
 					 struct ieee802_11_elems *elems)
 {
-	const struct ieee80211_multi_link_elem *ml;
 	const struct element *sub;
-	ssize_t ml_len;
 	unsigned long removed_links = 0;
 	u16 link_removal_timeout[IEEE80211_MLD_MAX_NUM_LINKS] = {};
 	u8 link_id;
@@ -5762,24 +5780,11 @@ static void ieee80211_ml_reconfiguration(struct ieee80211_sub_if_data *sdata,
 	if (!ieee80211_vif_is_mld(&sdata->vif) || !elems->ml_reconf)
 		return;
 
-	ml_len = cfg80211_defragment_element(elems->ml_reconf_elem,
-					     elems->ie_start,
-					     elems->total_len,
-					     elems->scratch_pos,
-					     elems->scratch + elems->scratch_len -
-					     elems->scratch_pos,
-					     WLAN_EID_FRAGMENT);
-	if (ml_len < 0)
-		return;
-
-	elems->ml_reconf = (const void *)elems->scratch_pos;
-	elems->ml_reconf_len = ml_len;
-	ml = elems->ml_reconf;
-
 	/* Directly parse the sub elements as the common information doesn't
 	 * hold any useful information.
 	 */
-	for_each_mle_subelement(sub, (u8 *)ml, ml_len) {
+	for_each_mle_subelement(sub, (const u8 *)elems->ml_reconf,
+				elems->ml_reconf_len) {
 		struct ieee80211_mle_per_sta_profile *prof = (void *)sub->data;
 		u8 *pos = prof->variable;
 		u16 control;
@@ -6297,9 +6302,6 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 			link->u.mgd.beacon_crc_valid = false;
 		}
 	}
-
-	if (link->u.mgd.csa_waiting_bcn)
-		ieee80211_chswitch_post_beacon(link);
 
 	/*
 	 * Update beacon timing and dtim count on every beacon appearance. This
@@ -8048,6 +8050,67 @@ ieee80211_setup_assoc_link(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
+static int
+ieee80211_mgd_get_ap_ht_vht_capa(struct ieee80211_sub_if_data *sdata,
+				 struct ieee80211_mgd_assoc_data *assoc_data,
+				 int link_id)
+{
+	struct cfg80211_bss *cbss = assoc_data->link[link_id].bss;
+	enum nl80211_band band = cbss->channel->band;
+	struct ieee80211_supported_band *sband;
+	const struct element *elem;
+	int err;
+
+	/* neither HT nor VHT elements used on 6 GHz */
+	if (band == NL80211_BAND_6GHZ)
+		return 0;
+
+	if (assoc_data->link[link_id].conn.mode < IEEE80211_CONN_MODE_HT)
+		return 0;
+
+	rcu_read_lock();
+	elem = ieee80211_bss_get_elem(cbss, WLAN_EID_HT_OPERATION);
+	if (!elem || elem->datalen < sizeof(struct ieee80211_ht_operation)) {
+		mlme_link_id_dbg(sdata, link_id, "no HT operation on BSS %pM\n",
+				 cbss->bssid);
+		err = -EINVAL;
+		goto out_rcu;
+	}
+	assoc_data->link[link_id].ap_ht_param =
+		((struct ieee80211_ht_operation *)(elem->data))->ht_param;
+	rcu_read_unlock();
+
+	if (assoc_data->link[link_id].conn.mode < IEEE80211_CONN_MODE_VHT)
+		return 0;
+
+	/* some drivers want to support VHT on 2.4 GHz even */
+	sband = sdata->local->hw.wiphy->bands[band];
+	if (!sband->vht_cap.vht_supported)
+		return 0;
+
+	rcu_read_lock();
+	elem = ieee80211_bss_get_elem(cbss, WLAN_EID_VHT_CAPABILITY);
+	/* but even then accept it not being present on the AP */
+	if (!elem && band == NL80211_BAND_2GHZ) {
+		err = 0;
+		goto out_rcu;
+	}
+	if (!elem || elem->datalen < sizeof(struct ieee80211_vht_cap)) {
+		mlme_link_id_dbg(sdata, link_id, "no VHT capa on BSS %pM\n",
+				 cbss->bssid);
+		err = -EINVAL;
+		goto out_rcu;
+	}
+	memcpy(&assoc_data->link[link_id].ap_vht_cap, elem->data,
+	       sizeof(struct ieee80211_vht_cap));
+	rcu_read_unlock();
+
+	return 0;
+out_rcu:
+	rcu_read_unlock();
+	return err;
+}
+
 int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 			struct cfg80211_assoc_request *req)
 {
@@ -8129,10 +8192,10 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	       sizeof(ifmgd->s1g_capa_mask));
 
 	/* keep some setup (AP STA, channel, ...) if matching */
-	if (ifmgd->auth_data)
-		match_auth = ether_addr_equal(ifmgd->auth_data->ap_addr,
-					      assoc_data->ap_addr) &&
-			     ifmgd->auth_data->link_id == req->link_id;
+	match_auth = ifmgd->auth_data &&
+		     ether_addr_equal(ifmgd->auth_data->ap_addr,
+				      assoc_data->ap_addr) &&
+		     ifmgd->auth_data->link_id == req->link_id;
 
 	if (req->ap_mld_addr) {
 		uapsd_supported = true;
@@ -8173,7 +8236,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 				eth_random_addr(assoc_data->link[i].addr);
 			sband = local->hw.wiphy->bands[link_cbss->channel->band];
 
-			if (match_auth && i == assoc_link_id)
+			if (match_auth && i == assoc_link_id && link)
 				assoc_data->link[i].conn = link->u.mgd.conn;
 			else
 				assoc_data->link[i].conn =
@@ -8188,6 +8251,14 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 				uapsd_supported = false;
 
 			if (assoc_data->link[i].conn.mode < IEEE80211_CONN_MODE_EHT) {
+				err = -EINVAL;
+				req->links[i].error = err;
+				goto err_free;
+			}
+
+			err = ieee80211_mgd_get_ap_ht_vht_capa(sdata,
+							       assoc_data, i);
+			if (err) {
 				err = -EINVAL;
 				req->links[i].error = err;
 				goto err_free;
@@ -8227,6 +8298,10 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 						       &assoc_data->link[0].conn);
 
 		uapsd_supported = bss->uapsd_supported;
+
+		err = ieee80211_mgd_get_ap_ht_vht_capa(sdata, assoc_data, 0);
+		if (err)
+			goto err_free;
 	}
 
 	assoc_data->spp_amsdu = req->flags & ASSOC_REQ_SPP_AMSDU;

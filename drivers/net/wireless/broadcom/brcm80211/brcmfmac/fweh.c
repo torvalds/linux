@@ -497,12 +497,12 @@ void brcmf_fweh_process_event(struct brcmf_pub *drvr,
 		return;
 
 	event->code = fwevt_idx;
+	event->datalen = datalen;
 	event->ifidx = event_packet->msg.ifidx;
 
 	/* use memcpy to get aligned event message */
 	memcpy(&event->emsg, &event_packet->msg, sizeof(event->emsg));
 	memcpy(event->data, data, datalen);
-	event->datalen = datalen;
 	memcpy(event->ifaddr, event_packet->eth.h_dest, ETH_ALEN);
 
 	brcmf_fweh_queue_event(fweh, event);

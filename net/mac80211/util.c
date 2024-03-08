@@ -1216,8 +1216,8 @@ static int ieee80211_put_preq_ies_band(struct sk_buff *skb,
 	if (band == NL80211_BAND_S1GHZ)
 		return ieee80211_put_s1g_cap(skb, &sband->s1g_cap);
 
-	err = ieee80211_put_srates_elem(skb, sband, 0, rate_flags, 0,
-					WLAN_EID_SUPP_RATES);
+	err = ieee80211_put_srates_elem(skb, sband, 0, rate_flags,
+					~rate_mask, WLAN_EID_SUPP_RATES);
 	if (err)
 		return err;
 
@@ -1238,8 +1238,8 @@ static int ieee80211_put_preq_ies_band(struct sk_buff *skb,
 		*offset = noffset;
 	}
 
-	err = ieee80211_put_srates_elem(skb, sband, 0, rate_flags, 0,
-					WLAN_EID_EXT_SUPP_RATES);
+	err = ieee80211_put_srates_elem(skb, sband, 0, rate_flags,
+					~rate_mask, WLAN_EID_EXT_SUPP_RATES);
 	if (err)
 		return err;
 
@@ -1935,8 +1935,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		for (link_id = 0;
 		     link_id < ARRAY_SIZE(sdata->vif.link_conf);
 		     link_id++) {
-			if (ieee80211_vif_is_mld(&sdata->vif) &&
-			    !(sdata->vif.active_links & BIT(link_id)))
+			if (!ieee80211_vif_link_active(&sdata->vif, link_id))
 				continue;
 
 			link = sdata_dereference(sdata->link[link_id], sdata);

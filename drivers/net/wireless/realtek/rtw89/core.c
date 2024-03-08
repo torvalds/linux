@@ -3801,7 +3801,7 @@ static void rtw89_init_eht_cap(struct rtw89_dev *rtwdev,
 	struct ieee80211_sta_eht_cap *eht_cap;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	bool support_320mhz = false;
-	int sts = 3;
+	int sts = 8;
 	u8 val;
 
 	if (chip->chip_gen == RTW89_CHIP_AX)
@@ -3845,18 +3845,16 @@ static void rtw89_init_eht_cap(struct rtw89_dev *rtwdev,
 	eht_cap_elem->phy_cap_info[2] = 0;
 
 	eht_cap_elem->phy_cap_info[3] =
-		IEEE80211_EHT_PHY_CAP3_NG_16_SU_FEEDBACK |
-		IEEE80211_EHT_PHY_CAP3_NG_16_MU_FEEDBACK |
 		IEEE80211_EHT_PHY_CAP3_CODEBOOK_4_2_SU_FDBK |
 		IEEE80211_EHT_PHY_CAP3_CODEBOOK_7_5_MU_FDBK |
-		IEEE80211_EHT_PHY_CAP3_TRIG_CQI_FDBK;
+		IEEE80211_EHT_PHY_CAP3_TRIG_SU_BF_FDBK |
+		IEEE80211_EHT_PHY_CAP3_TRIG_MU_BF_PART_BW_FDBK;
 
 	eht_cap_elem->phy_cap_info[4] =
 		IEEE80211_EHT_PHY_CAP4_POWER_BOOST_FACT_SUPP |
 		u8_encode_bits(1, IEEE80211_EHT_PHY_CAP4_MAX_NC_MASK);
 
 	eht_cap_elem->phy_cap_info[5] =
-		IEEE80211_EHT_PHY_CAP5_NON_TRIG_CQI_FEEDBACK |
 		u8_encode_bits(IEEE80211_EHT_PHY_CAP5_COMMON_NOMINAL_PKT_PAD_20US,
 			       IEEE80211_EHT_PHY_CAP5_COMMON_NOMINAL_PKT_PAD_MASK);
 
@@ -4505,6 +4503,8 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	hw->wiphy->max_remain_on_channel_duration = 1000;
 
 	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_SCAN_RANDOM_SN);
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_SET_SCAN_DWELL);
 
 	ret = rtw89_core_set_supported_band(rtwdev);
 	if (ret) {

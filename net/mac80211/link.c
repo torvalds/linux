@@ -356,7 +356,7 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 
 		link = sdata_dereference(sdata->link[link_id], sdata);
 
-		/* FIXME: kill TDLS connections on the link */
+		ieee80211_teardown_tdls_peers(link);
 
 		ieee80211_link_release_channel(link);
 	}

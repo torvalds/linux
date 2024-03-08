@@ -2025,6 +2025,9 @@ void rtw89_mac_hw_mgnt_sec(struct rtw89_dev *rtwdev, bool enable)
 {
 	u32 msk32 = B_AX_UC_MGNT_DEC | B_AX_BMC_MGNT_DEC;
 
+	if (rtwdev->chip->chip_gen != RTW89_CHIP_AX)
+		return;
+
 	if (enable)
 		rtw89_write32_set(rtwdev, R_AX_SEC_ENG_CTRL, msk32);
 	else
@@ -5615,7 +5618,8 @@ int rtw89_mac_cfg_gnt_v1(struct rtw89_dev *rtwdev,
 }
 EXPORT_SYMBOL(rtw89_mac_cfg_gnt_v1);
 
-int rtw89_mac_cfg_plt(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_plt *plt)
+static
+int rtw89_mac_cfg_plt_ax(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_plt *plt)
 {
 	u32 reg;
 	u16 val;
@@ -5711,7 +5715,7 @@ bool rtw89_mac_get_ctrl_path(struct rtw89_dev *rtwdev)
 	return !!val;
 }
 
-u16 rtw89_mac_get_plt_cnt(struct rtw89_dev *rtwdev, u8 band)
+static u16 rtw89_mac_get_plt_cnt_ax(struct rtw89_dev *rtwdev, u8 band)
 {
 	u32 reg;
 	u16 cnt;
@@ -6265,6 +6269,41 @@ int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 	return ret;
 }
 
+static int rtw89_wow_config_mac_ax(struct rtw89_dev *rtwdev, bool enable_wow)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	int ret;
+
+	if (enable_wow) {
+		ret = rtw89_mac_resize_ple_rx_quota(rtwdev, true);
+		if (ret) {
+			rtw89_err(rtwdev, "[ERR]patch rx qta %d\n", ret);
+			return ret;
+		}
+
+		rtw89_write32_set(rtwdev, R_AX_RX_FUNCTION_STOP, B_AX_HDR_RX_STOP);
+		rtw89_write32_clr(rtwdev, mac->rx_fltr, B_AX_SNIFFER_MODE);
+		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, false);
+		rtw89_write32(rtwdev, R_AX_ACTION_FWD0, 0);
+		rtw89_write32(rtwdev, R_AX_ACTION_FWD1, 0);
+		rtw89_write32(rtwdev, R_AX_TF_FWD, 0);
+		rtw89_write32(rtwdev, R_AX_HW_RPT_FWD, 0);
+	} else {
+		ret = rtw89_mac_resize_ple_rx_quota(rtwdev, false);
+		if (ret) {
+			rtw89_err(rtwdev, "[ERR]patch rx qta %d\n", ret);
+			return ret;
+		}
+
+		rtw89_write32_clr(rtwdev, R_AX_RX_FUNCTION_STOP, B_AX_HDR_RX_STOP);
+		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, true);
+		rtw89_write32(rtwdev, R_AX_ACTION_FWD0, TRXCFG_MPDU_PROC_ACT_FRWD);
+		rtw89_write32(rtwdev, R_AX_TF_FWD, TRXCFG_MPDU_PROC_TF_FRWD);
+	}
+
+	return 0;
+}
+
 static u8 rtw89_fw_get_rdy_ax(struct rtw89_dev *rtwdev, enum rtw89_fwdl_check_type type)
 {
 	u8 val = rtw89_read8(rtwdev, R_AX_WCPU_FW_CTRL);
@@ -6307,6 +6346,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 		.addr = R_AX_RXTRIG_TEST_USER_2,
 		.mask = B_AX_RXTRIG_RU26_DIS,
 	},
+	.wow_ctrl = {.addr = R_AX_WOW_CTRL, .mask = B_AX_WOW_WOWEN,},
 
 	.check_mac_en = rtw89_mac_check_mac_en_ax,
 	.sys_init = sys_init_ax,
@@ -6340,6 +6380,9 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.parse_phycap_map = rtw89_parse_phycap_map_ax,
 	.cnv_efuse_state = rtw89_cnv_efuse_state_ax,
 
+	.cfg_plt = rtw89_mac_cfg_plt_ax,
+	.get_plt_cnt = rtw89_mac_get_plt_cnt_ax,
+
 	.get_txpwr_cr = rtw89_mac_get_txpwr_cr_ax,
 
 	.write_xtal_si = rtw89_mac_write_xtal_si_ax,
@@ -6352,5 +6395,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 
 	.add_chan_list = rtw89_hw_scan_add_chan_list,
 	.scan_offload = rtw89_fw_h2c_scan_offload,
+
+	.wow_config_mac = rtw89_wow_config_mac_ax,
 };
 EXPORT_SYMBOL(rtw89_mac_gen_ax);

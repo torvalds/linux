@@ -1470,7 +1470,8 @@ out_unlock:
 }
 
 void iwl_mvm_abort_channel_switch(struct ieee80211_hw *hw,
-				  struct ieee80211_vif *vif)
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -5551,8 +5552,16 @@ void iwl_mvm_channel_switch_rx_beacon(struct ieee80211_hw *hw,
 
 	if (chsw->count >= mvmvif->csa_count && chsw->block_tx) {
 		if (mvmvif->csa_misbehave) {
+			struct ieee80211_bss_conf *link_conf;
+
 			/* Second time, give up on this AP*/
-			iwl_mvm_abort_channel_switch(hw, vif);
+
+			link_conf = wiphy_dereference(hw->wiphy,
+						      vif->link_conf[chsw->link_id]);
+			if (WARN_ON(!link_conf))
+				return;
+
+			iwl_mvm_abort_channel_switch(hw, vif, link_conf);
 			ieee80211_chswitch_done(vif, false, 0);
 			mvmvif->csa_misbehave = false;
 			return;

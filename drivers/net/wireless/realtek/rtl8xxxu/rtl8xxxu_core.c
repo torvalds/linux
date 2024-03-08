@@ -4919,10 +4919,10 @@ static void rtl8xxxu_set_aifs(struct rtl8xxxu_priv *priv, u8 slot_time)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(priv->vifs); i++) {
+		struct ieee80211_sta *sta;
+
 		if (!priv->vifs[i])
 			continue;
-
-		struct ieee80211_sta *sta;
 
 		rcu_read_lock();
 		sta = ieee80211_find_sta(priv->vifs[i], priv->vifs[i]->bss_conf.bssid);

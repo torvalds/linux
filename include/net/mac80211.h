@@ -1763,8 +1763,9 @@ struct ieee80211_conf {
  * @chandef: the new channel to switch to
  * @count: the number of TBTT's until the channel switch event
  * @delay: maximum delay between the time the AP transmitted the last beacon in
-  *	current channel and the expected time of the first beacon in the new
-  *	channel, expressed in TU.
+ *	current channel and the expected time of the first beacon in the new
+ *	channel, expressed in TU.
+ * @link_id: the link ID of the link doing the channel switch, 0 for non-MLO
  */
 struct ieee80211_channel_switch {
 	u64 timestamp;
@@ -1772,6 +1773,7 @@ struct ieee80211_channel_switch {
 	bool block_tx;
 	struct cfg80211_chan_def chandef;
 	u8 count;
+	u8 link_id;
 	u32 delay;
 };
 
@@ -2009,6 +2011,21 @@ static inline bool ieee80211_vif_is_mld(const struct ieee80211_vif *vif)
 {
 	/* valid_links != 0 indicates this vif is an MLD */
 	return vif->valid_links != 0;
+}
+
+/**
+ * ieee80211_vif_link_active - check if a given link is active
+ * @vif: the vif
+ * @link_id: the link ID to check
+ * Return: %true if the vif is an MLD and the link is active, or if
+ *	the vif is not an MLD and the link ID is 0; %false otherwise.
+ */
+static inline bool ieee80211_vif_link_active(const struct ieee80211_vif *vif,
+					     unsigned int link_id)
+{
+	if (!ieee80211_vif_is_mld(vif))
+		return link_id == 0;
+	return vif->active_links & BIT(link_id);
 }
 
 #define for_each_vif_active_link(vif, link, link_id)				\
@@ -2761,6 +2778,11 @@ struct ieee80211_txq {
  * @IEEE80211_HW_DISALLOW_PUNCTURING: HW requires disabling puncturing in EHT
  *	and connecting with a lower bandwidth instead
  *
+ * @IEEE80211_HW_HANDLES_QUIET_CSA: HW/driver handles quieting for CSA, so
+ *	no need to stop queues. This really should be set by a driver that
+ *	implements MLO, so operation can continue on other links when one
+ *	link is switching.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -2819,6 +2841,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_DETECTS_COLOR_COLLISION,
 	IEEE80211_HW_MLO_MCAST_MULTI_LINK_TX,
 	IEEE80211_HW_DISALLOW_PUNCTURING,
+	IEEE80211_HW_HANDLES_QUIET_CSA,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
@@ -4251,7 +4274,7 @@ struct ieee80211_prep_tx_info {
  *	after a channel switch procedure is completed, allowing the
  *	driver to go back to a normal configuration.
  * @abort_channel_switch: This is an optional callback that is called
- *	when channel switch procedure was completed, allowing the
+ *	when channel switch procedure was aborted, allowing the
  *	driver to go back to a normal configuration.
  * @channel_switch_rx_beacon: This is an optional callback that is called
  *	when channel switch procedure is in progress and additional beacon with
@@ -4647,7 +4670,8 @@ struct ieee80211_ops {
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_bss_conf *link_conf);
 	void (*abort_channel_switch)(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif);
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_bss_conf *link_conf);
 	void (*channel_switch_rx_beacon)(struct ieee80211_hw *hw,
 					 struct ieee80211_vif *vif,
 					 struct ieee80211_channel_switch *ch_switch);
@@ -5912,6 +5936,7 @@ void ieee80211_remove_key(struct ieee80211_key_conf *keyconf);
  * ieee80211_gtk_rekey_add - add a GTK key from rekeying during WoWLAN
  * @vif: the virtual interface to add the key on
  * @keyconf: new key data
+ * @link_id: the link id of the key or -1 for non-MLO
  *
  * When GTK rekeying was done while the system was suspended, (a) new
  * key(s) will be available. These will be needed by mac80211 for proper
@@ -5939,7 +5964,8 @@ void ieee80211_remove_key(struct ieee80211_key_conf *keyconf);
  */
 struct ieee80211_key_conf *
 ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
-			struct ieee80211_key_conf *keyconf);
+			struct ieee80211_key_conf *keyconf,
+			int link_id);
 
 /**
  * ieee80211_gtk_rekey_notify - notify userspace supplicant of rekeying

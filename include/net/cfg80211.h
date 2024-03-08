@@ -6871,13 +6871,45 @@ cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
 }
 
 /**
+ * enum cfg80211_rnr_iter_ret - reduced neighbor report iteration state
+ * @RNR_ITER_CONTINUE: continue iterating with the next entry
+ * @RNR_ITER_BREAK: break iteration and return success
+ * @RNR_ITER_ERROR: break iteration and return error
+ */
+enum cfg80211_rnr_iter_ret {
+	RNR_ITER_CONTINUE,
+	RNR_ITER_BREAK,
+	RNR_ITER_ERROR,
+};
+
+/**
+ * cfg80211_iter_rnr - iterate reduced neighbor report entries
+ * @elems: the frame elements to iterate RNR elements and then
+ *	their entries in
+ * @elems_len: length of the elements
+ * @iter: iteration function, see also &enum cfg80211_rnr_iter_ret
+ *	for the return value
+ * @iter_data: additional data passed to the iteration function
+ * Return: %true on success (after successfully iterating all entries
+ *	or if the iteration function returned %RNR_ITER_BREAK),
+ *	%false on error (iteration function returned %RNR_ITER_ERROR
+ *	or elements were malformed.)
+ */
+bool cfg80211_iter_rnr(const u8 *elems, size_t elems_len,
+		       enum cfg80211_rnr_iter_ret
+		       (*iter)(void *data, u8 type,
+			       const struct ieee80211_neighbor_ap_info *info,
+			       const u8 *tbtt_info, u8 tbtt_info_len),
+		       void *iter_data);
+
+/**
  * cfg80211_defragment_element - Defrag the given element data into a buffer
  *
  * @elem: the element to defragment
  * @ies: elements where @elem is contained
  * @ieslen: length of @ies
- * @data: buffer to store element data
- * @data_len: length of @data
+ * @data: buffer to store element data, or %NULL to just determine size
+ * @data_len: length of @data, or 0
  * @frag_id: the element ID of fragments
  *
  * Return: length of @data, or -EINVAL on error

@@ -81,6 +81,9 @@ static int cw1200_spi_memcpy_fromio(struct hwbus_priv *self,
 	pr_info("READ : %04d from 0x%02x (%04x)\n", count, addr, regaddr);
 #endif
 
+	/* Header is LE16 */
+	regaddr = (__force u16)cpu_to_le16(regaddr);
+
 	/* We have to byteswap if the SPI bus is limited to 8b operation
 	   or we are running on a Big Endian system
 	*/
@@ -142,6 +145,9 @@ static int cw1200_spi_memcpy_toio(struct hwbus_priv *self,
 #ifdef SPI_DEBUG
 	pr_info("WRITE: %04d  to  0x%02x (%04x)\n", count, addr, regaddr);
 #endif
+
+	/* Header is LE16 */
+	regaddr = (__force u16)cpu_to_le16(regaddr);
 
 	/* We have to byteswap if the SPI bus is limited to 8b operation
 	   or we are running on a Big Endian system

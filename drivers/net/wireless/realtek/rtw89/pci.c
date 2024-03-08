@@ -218,7 +218,7 @@ int rtw89_pci_sync_skb_for_device_and_validate_rx_info(struct rtw89_dev *rtwdev,
 	return ret;
 }
 
-static void rtw89_pci_ctrl_txdma_ch_pcie(struct rtw89_dev *rtwdev, bool enable)
+static void rtw89_pci_ctrl_txdma_ch_ax(struct rtw89_dev *rtwdev, bool enable)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	const struct rtw89_reg_def *dma_stop1 = &info->dma_stop1;
@@ -235,7 +235,7 @@ static void rtw89_pci_ctrl_txdma_ch_pcie(struct rtw89_dev *rtwdev, bool enable)
 	}
 }
 
-static void rtw89_pci_ctrl_txdma_fw_ch_pcie(struct rtw89_dev *rtwdev, bool enable)
+static void rtw89_pci_ctrl_txdma_fw_ch_ax(struct rtw89_dev *rtwdev, bool enable)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	const struct rtw89_reg_def *dma_stop1 = &info->dma_stop1;
@@ -2524,7 +2524,7 @@ static void rtw89_pci_clr_idx_all_ax(struct rtw89_dev *rtwdev)
 			  B_AX_CLR_RXQ_IDX | B_AX_CLR_RPQ_IDX);
 }
 
-static int rtw89_poll_txdma_ch_idle_pcie(struct rtw89_dev *rtwdev)
+static int rtw89_pci_poll_txdma_ch_idle_ax(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	u32 ret, check, dma_busy;
@@ -2551,7 +2551,7 @@ static int rtw89_poll_txdma_ch_idle_pcie(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
-static int rtw89_poll_rxdma_ch_idle_pcie(struct rtw89_dev *rtwdev)
+static int rtw89_pci_poll_rxdma_ch_idle_ax(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	u32 ret, check, dma_busy;
@@ -2571,13 +2571,13 @@ static int rtw89_pci_poll_dma_all_idle(struct rtw89_dev *rtwdev)
 {
 	u32 ret;
 
-	ret = rtw89_poll_txdma_ch_idle_pcie(rtwdev);
+	ret = rtw89_pci_poll_txdma_ch_idle_ax(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "txdma ch busy\n");
 		return ret;
 	}
 
-	ret = rtw89_poll_rxdma_ch_idle_pcie(rtwdev);
+	ret = rtw89_pci_poll_rxdma_ch_idle_ax(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "rxdma ch busy\n");
 		return ret;
@@ -2756,8 +2756,8 @@ static int rtw89_pci_ops_mac_pre_init_ax(struct rtw89_dev *rtwdev)
 	}
 
 	/* disable all channels except to FW CMD channel to download firmware */
-	rtw89_pci_ctrl_txdma_ch_pcie(rtwdev, false);
-	rtw89_pci_ctrl_txdma_fw_ch_pcie(rtwdev, true);
+	rtw89_pci_ctrl_txdma_ch_ax(rtwdev, false);
+	rtw89_pci_ctrl_txdma_fw_ch_ax(rtwdev, true);
 
 	/* start DMA activities */
 	rtw89_pci_ctrl_dma_all(rtwdev, true);
@@ -2870,7 +2870,7 @@ static int rtw89_pci_ops_mac_post_init_ax(struct rtw89_dev *rtwdev)
 	}
 
 	/* enable DMA for all queues */
-	rtw89_pci_ctrl_txdma_ch_pcie(rtwdev, true);
+	rtw89_pci_ctrl_txdma_ch_ax(rtwdev, true);
 
 	/* Release PCI IO */
 	rtw89_write32_clr(rtwdev, info->dma_stop1.addr,
@@ -3652,11 +3652,19 @@ static int rtw89_pci_filter_out(struct rtw89_dev *rtwdev)
 
 static void rtw89_pci_clkreq_set(struct rtw89_dev *rtwdev, bool enable)
 {
-	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
-	int ret;
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
 
 	if (rtw89_pci_disable_clkreq)
 		return;
+
+	gen_def->clkreq_set(rtwdev, enable);
+}
+
+static void rtw89_pci_clkreq_set_ax(struct rtw89_dev *rtwdev, bool enable)
+{
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	int ret;
 
 	ret = rtw89_pci_write_config_byte(rtwdev, RTW89_PCIE_CLK_CTRL,
 					  PCIE_CLKDLY_HW_30US);
@@ -3689,24 +3697,31 @@ static void rtw89_pci_clkreq_set(struct rtw89_dev *rtwdev, bool enable)
 
 static void rtw89_pci_aspm_set(struct rtw89_dev *rtwdev, bool enable)
 {
-	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
-	u8 value = 0;
-	int ret;
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
 
 	if (rtw89_pci_disable_aspm_l1)
 		return;
 
+	gen_def->aspm_set(rtwdev, enable);
+}
+
+static void rtw89_pci_aspm_set_ax(struct rtw89_dev *rtwdev, bool enable)
+{
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	u8 value = 0;
+	int ret;
+
 	ret = rtw89_pci_read_config_byte(rtwdev, RTW89_PCIE_ASPM_CTRL, &value);
 	if (ret)
-		rtw89_err(rtwdev, "failed to read ASPM Delay\n");
+		rtw89_warn(rtwdev, "failed to read ASPM Delay\n");
 
-	value &= ~(RTW89_L1DLY_MASK | RTW89_L0DLY_MASK);
-	value |= FIELD_PREP(RTW89_L1DLY_MASK, PCIE_L1DLY_16US) |
-		 FIELD_PREP(RTW89_L0DLY_MASK, PCIE_L0SDLY_4US);
+	u8p_replace_bits(&value, PCIE_L1DLY_16US, RTW89_L1DLY_MASK);
+	u8p_replace_bits(&value, PCIE_L0SDLY_4US, RTW89_L0DLY_MASK);
 
 	ret = rtw89_pci_write_config_byte(rtwdev, RTW89_PCIE_ASPM_CTRL, value);
 	if (ret)
-		rtw89_err(rtwdev, "failed to read ASPM Delay\n");
+		rtw89_warn(rtwdev, "failed to read ASPM Delay\n");
 
 	if (chip_id == RTL8852A || chip_id == RTL8852B || chip_id == RTL8851B) {
 		if (enable)
@@ -3792,6 +3807,17 @@ static void rtw89_pci_link_cfg(struct rtw89_dev *rtwdev)
 }
 
 static void rtw89_pci_l1ss_set(struct rtw89_dev *rtwdev, bool enable)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
+
+	if (rtw89_pci_disable_l1ss)
+		return;
+
+	gen_def->l1ss_set(rtwdev, enable);
+}
+
+static void rtw89_pci_l1ss_set_ax(struct rtw89_dev *rtwdev, bool enable)
 {
 	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	int ret;
@@ -4066,6 +4092,14 @@ const struct rtw89_pci_gen_def rtw89_pci_gen_ax = {
 
 	.lv1rst_stop_dma = rtw89_pci_lv1rst_stop_dma_ax,
 	.lv1rst_start_dma = rtw89_pci_lv1rst_start_dma_ax,
+
+	.ctrl_txdma_ch = rtw89_pci_ctrl_txdma_ch_ax,
+	.ctrl_txdma_fw_ch = rtw89_pci_ctrl_txdma_fw_ch_ax,
+	.poll_txdma_ch_idle = rtw89_pci_poll_txdma_ch_idle_ax,
+
+	.aspm_set = rtw89_pci_aspm_set_ax,
+	.clkreq_set = rtw89_pci_clkreq_set_ax,
+	.l1ss_set = rtw89_pci_l1ss_set_ax,
 };
 EXPORT_SYMBOL(rtw89_pci_gen_ax);
 
@@ -4100,10 +4134,11 @@ static const struct rtw89_hci_ops rtw89_pci_ops = {
 	.recovery_start = rtw89_pci_ops_recovery_start,
 	.recovery_complete = rtw89_pci_ops_recovery_complete,
 
-	.ctrl_txdma_ch	= rtw89_pci_ctrl_txdma_ch_pcie,
-	.ctrl_txdma_fw_ch = rtw89_pci_ctrl_txdma_fw_ch_pcie,
+	.ctrl_txdma_ch	= rtw89_pci_ctrl_txdma_ch,
+	.ctrl_txdma_fw_ch = rtw89_pci_ctrl_txdma_fw_ch,
 	.ctrl_trxhci	= rtw89_pci_ctrl_dma_trx,
-	.poll_txdma_ch	= rtw89_poll_txdma_ch_idle_pcie,
+	.poll_txdma_ch_idle = rtw89_pci_poll_txdma_ch_idle,
+
 	.clr_idx_all	= rtw89_pci_clr_idx_all,
 	.clear		= rtw89_pci_clear_resource,
 	.disable_intr	= rtw89_pci_disable_intr_lock,

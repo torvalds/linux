@@ -2150,6 +2150,113 @@ static u8 rtw8922a_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_p
 	return clamp_t(int, th, 0, U8_MAX);
 }
 
+static void rtw8922a_btc_set_rfe(struct rtw89_dev *rtwdev)
+{
+	union rtw89_btc_module_info *md = &rtwdev->btc.mdinfo;
+	struct rtw89_btc_module_v7 *module = &md->md_v7;
+
+	module->rfe_type = rtwdev->efuse.rfe_type;
+	module->kt_ver = rtwdev->hal.cv;
+	module->bt_solo = 0;
+	module->switch_type = BTC_SWITCH_INTERNAL;
+	module->wa_type = 0;
+
+	module->ant.type = BTC_ANT_SHARED;
+	module->ant.num = 2;
+	module->ant.isolation = 10;
+	module->ant.diversity = 0;
+	module->ant.single_pos = RF_PATH_A;
+	module->ant.btg_pos = RF_PATH_B;
+
+	if (module->kt_ver <= 1)
+		module->wa_type |= BTC_WA_HFP_ZB;
+
+	rtwdev->btc.cx.other.type = BTC_3CX_NONE;
+
+	if (module->rfe_type == 0) {
+		rtwdev->btc.dm.error.map.rfe_type0 = true;
+		return;
+	}
+
+	module->ant.num = (module->rfe_type % 2) ?  2 : 3;
+
+	if (module->kt_ver == 0)
+		module->ant.num = 2;
+
+	if (module->ant.num == 3) {
+		module->ant.type = BTC_ANT_DEDICATED;
+		module->bt_pos = BTC_BT_ALONE;
+	} else {
+		module->ant.type = BTC_ANT_SHARED;
+		module->bt_pos = BTC_BT_BTG;
+	}
+	rtwdev->btc.btg_pos = module->ant.btg_pos;
+	rtwdev->btc.ant_type = module->ant.type;
+}
+
+static
+void rtw8922a_set_trx_mask(struct rtw89_dev *rtwdev, u8 path, u8 group, u32 val)
+{
+	rtw89_write_rf(rtwdev, path, RR_LUTWA, RFREG_MASK, group);
+	rtw89_write_rf(rtwdev, path, RR_LUTWD0, RFREG_MASK, val);
+}
+
+static void rtw8922a_btc_init_cfg(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_ant_info_v7 *ant = &btc->mdinfo.md_v7.ant;
+	u32 wl_pri, path_min, path_max;
+	u8 path;
+
+	/* for 1-Ant && 1-ss case: only 1-path */
+	if (ant->num == 1) {
+		path_min = ant->single_pos;
+		path_max = path_min;
+	} else {
+		path_min = RF_PATH_A;
+		path_max = RF_PATH_B;
+	}
+
+	path = path_min;
+
+	for (path = path_min; path <= path_max; path++) {
+		/* set DEBUG_LUT_RFMODE_MASK = 1 to start trx-mask-setup */
+		rtw89_write_rf(rtwdev, path, RR_LUTWE, RFREG_MASK, BIT(17));
+
+		/* if GNT_WL=0 && BT=SS_group --> WL Tx/Rx = THRU  */
+		rtw8922a_set_trx_mask(rtwdev, path, BTC_BT_SS_GROUP, 0x5ff);
+
+		/* if GNT_WL=0 && BT=Rx_group --> WL-Rx = THRU + WL-Tx = MASK */
+		rtw8922a_set_trx_mask(rtwdev, path, BTC_BT_RX_GROUP, 0x5df);
+
+		/* if GNT_WL = 0 && BT = Tx_group -->
+		 * Shared-Ant && BTG-path:WL mask(0x55f), others:WL THRU(0x5ff)
+		 */
+		if (btc->ant_type == BTC_ANT_SHARED && btc->btg_pos == path)
+			rtw8922a_set_trx_mask(rtwdev, path, BTC_BT_TX_GROUP, 0x5ff);
+		else
+			rtw8922a_set_trx_mask(rtwdev, path, BTC_BT_TX_GROUP, 0x5ff);
+
+		rtw89_write_rf(rtwdev, path, RR_LUTWE, RFREG_MASK, 0);
+	}
+
+	/* set WL PTA Hi-Pri: Ack-Tx, beacon-tx, Trig-frame-Tx, Null-Tx*/
+	wl_pri = B_BTC_RSP_ACK_HI | B_BTC_TX_BCN_HI | B_BTC_TX_TRI_HI |
+		 B_BTC_TX_NULL_HI;
+	rtw89_write32(rtwdev, R_BTC_COEX_WL_REQ_BE, wl_pri);
+
+	/* set PTA break table */
+	rtw89_write32(rtwdev, R_BE_BT_BREAK_TABLE, BTC_BREAK_PARAM);
+
+	/* ZB coex table init for HFP PTA req-cmd bit-4 define issue COEX-900*/
+	rtw89_write32(rtwdev, R_BTC_ZB_COEX_TBL_0, 0xda5a5a5a);
+
+	rtw89_write32(rtwdev, R_BTC_ZB_COEX_TBL_1, 0xda5a5a5a);
+
+	rtw89_write32(rtwdev, R_BTC_ZB_BREAK_TBL, 0xf0ffffff);
+	btc->cx.wl.status.map.init_ok = true;
+}
+
 static void rtw8922a_fill_freq_with_ppdu(struct rtw89_dev *rtwdev,
 					 struct rtw89_rx_phy_ppdu *phy_ppdu,
 					 struct ieee80211_rx_status *status)
@@ -2246,6 +2353,8 @@ static const struct rtw89_chip_ops rtw8922a_chip_ops = {
 	.query_rxdesc		= rtw89_core_query_rxdesc_v2,
 	.fill_txdesc		= rtw89_core_fill_txdesc_v2,
 	.fill_txdesc_fwcmd	= rtw89_core_fill_txdesc_fwcmd_v2,
+	.cfg_ctrl_path		= rtw89_mac_cfg_ctrl_path_v2,
+	.mac_cfg_gnt		= rtw89_mac_cfg_gnt_v2,
 	.stop_sch_tx		= rtw89_mac_stop_sch_tx_v2,
 	.resume_sch_tx		= rtw89_mac_resume_sch_tx_v2,
 	.h2c_dctl_sec_cam	= rtw89_fw_h2c_dctl_sec_cam_v2,
@@ -2255,6 +2364,9 @@ static const struct rtw89_chip_ops rtw8922a_chip_ops = {
 	.h2c_default_dmac_tbl	= rtw89_fw_h2c_default_dmac_tbl_v2,
 	.h2c_update_beacon	= rtw89_fw_h2c_update_beacon_be,
 	.h2c_ba_cam		= rtw89_fw_h2c_ba_cam_v1,
+
+	.btc_set_rfe		= rtw8922a_btc_set_rfe,
+	.btc_init_cfg		= rtw8922a_btc_init_cfg,
 };
 
 const struct rtw89_chip_info rtw8922a_chip_info = {
@@ -2341,6 +2453,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.c2h_counter_reg	= {R_BE_UDM1 + 1, B_BE_UDM1_HALMAC_C2H_ENQ_CNT_MASK >> 8},
 	.c2h_regs		= rtw8922a_c2h_regs,
 	.page_regs		= &rtw8922a_page_regs,
+	.wow_reason_reg		= R_AX_C2HREG_DATA3_V1 + 3,
 	.cfo_src_fd		= true,
 	.cfo_hw_comp            = true,
 	.dcfo_comp		= NULL,

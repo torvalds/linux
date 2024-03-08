@@ -611,19 +611,12 @@ static int cfg80211_parse_ap_info(struct cfg80211_colocated_ap *entry,
 	return 0;
 }
 
-enum cfg80211_rnr_iter_ret {
-	RNR_ITER_CONTINUE,
-	RNR_ITER_BREAK,
-	RNR_ITER_ERROR,
-};
-
-static bool
-cfg80211_iter_rnr(const u8 *elems, size_t elems_len,
-		  enum cfg80211_rnr_iter_ret
-		  (*iter)(void *data, u8 type,
-			  const struct ieee80211_neighbor_ap_info *info,
-			  const u8 *tbtt_info, u8 tbtt_info_len),
-		  void *iter_data)
+bool cfg80211_iter_rnr(const u8 *elems, size_t elems_len,
+		       enum cfg80211_rnr_iter_ret
+		       (*iter)(void *data, u8 type,
+			       const struct ieee80211_neighbor_ap_info *info,
+			       const u8 *tbtt_info, u8 tbtt_info_len),
+		       void *iter_data)
 {
 	const struct element *rnr;
 	const u8 *pos, *end;
@@ -675,6 +668,7 @@ cfg80211_iter_rnr(const u8 *elems, size_t elems_len,
 
 	return true;
 }
+EXPORT_SYMBOL_GPL(cfg80211_iter_rnr);
 
 struct colocated_ap_data {
 	const struct element *ssid_elem;
@@ -2510,16 +2504,22 @@ ssize_t cfg80211_defragment_element(const struct element *elem, const u8 *ies,
 
 	if (elem->id == WLAN_EID_EXTENSION) {
 		copied = elem->datalen - 1;
-		if (copied > data_len)
-			return -ENOSPC;
 
-		memmove(data, elem->data + 1, copied);
+		if (data) {
+			if (copied > data_len)
+				return -ENOSPC;
+
+			memmove(data, elem->data + 1, copied);
+		}
 	} else {
 		copied = elem->datalen;
-		if (copied > data_len)
-			return -ENOSPC;
 
-		memmove(data, elem->data, copied);
+		if (data) {
+			if (copied > data_len)
+				return -ENOSPC;
+
+			memmove(data, elem->data, copied);
+		}
 	}
 
 	/* Fragmented elements must have 255 bytes */
@@ -2538,10 +2538,13 @@ ssize_t cfg80211_defragment_element(const struct element *elem, const u8 *ies,
 
 		elem_datalen = elem->datalen;
 
-		if (copied + elem_datalen > data_len)
-			return -ENOSPC;
+		if (data) {
+			if (copied + elem_datalen > data_len)
+				return -ENOSPC;
 
-		memmove(data + copied, elem->data, elem_datalen);
+			memmove(data + copied, elem->data, elem_datalen);
+		}
+
 		copied += elem_datalen;
 
 		/* Only the last fragment may be short */

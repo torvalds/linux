@@ -169,6 +169,12 @@ enum rtw89_mac_ax_l0_to_l1_event {
 	MAC_AX_L0_TO_L1_EVENT_MAX = 15,
 };
 
+enum rtw89_mac_wow_fw_status {
+	WOWLAN_NOT_READY = 0x00,
+	WOWLAN_SLEEP_READY = 0x01,
+	WOWLAN_RESUME_READY = 0x02,
+};
+
 #define RTW89_PORT_OFFSET_TU_TO_32US(shift_tu) ((shift_tu) * 1024 / 32)
 
 enum rtw89_mac_dbg_port_sel {
@@ -913,6 +919,7 @@ struct rtw89_mac_gen_def {
 	struct rtw89_reg_def muedca_ctrl;
 	struct rtw89_reg_def bfee_ctrl;
 	struct rtw89_reg_def narrow_bw_ru_dis;
+	struct rtw89_reg_def wow_ctrl;
 
 	int (*check_mac_en)(struct rtw89_dev *rtwdev, u8 band,
 			    enum rtw89_mac_hwmod_sel sel);
@@ -958,6 +965,9 @@ struct rtw89_mac_gen_def {
 	int (*parse_phycap_map)(struct rtw89_dev *rtwdev);
 	int (*cnv_efuse_state)(struct rtw89_dev *rtwdev, bool idle);
 
+	int (*cfg_plt)(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_plt *plt);
+	u16 (*get_plt_cnt)(struct rtw89_dev *rtwdev, u8 band);
+
 	bool (*get_txpwr_cr)(struct rtw89_dev *rtwdev,
 			     enum rtw89_phy_idx phy_idx,
 			     u32 reg_base, u32 *cr);
@@ -976,6 +986,8 @@ struct rtw89_mac_gen_def {
 	int (*scan_offload)(struct rtw89_dev *rtwdev,
 			    struct rtw89_scan_option *option,
 			    struct rtw89_vif *rtwvif);
+
+	int (*wow_config_mac)(struct rtw89_dev *rtwdev, bool enable_wow);
 };
 
 extern const struct rtw89_mac_gen_def rtw89_mac_gen_ax;
@@ -1185,13 +1197,31 @@ int rtw89_mac_cfg_gnt(struct rtw89_dev *rtwdev,
 		      const struct rtw89_mac_ax_coex_gnt *gnt_cfg);
 int rtw89_mac_cfg_gnt_v1(struct rtw89_dev *rtwdev,
 			 const struct rtw89_mac_ax_coex_gnt *gnt_cfg);
-int rtw89_mac_cfg_plt(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_plt *plt);
-u16 rtw89_mac_get_plt_cnt(struct rtw89_dev *rtwdev, u8 band);
+int rtw89_mac_cfg_gnt_v2(struct rtw89_dev *rtwdev,
+			 const struct rtw89_mac_ax_coex_gnt *gnt_cfg);
+
+static inline
+int rtw89_mac_cfg_plt(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_plt *plt)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	return mac->cfg_plt(rtwdev, plt);
+}
+
+static inline
+u16 rtw89_mac_get_plt_cnt(struct rtw89_dev *rtwdev, u8 band)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	return mac->get_plt_cnt(rtwdev, band);
+}
+
 void rtw89_mac_cfg_sb(struct rtw89_dev *rtwdev, u32 val);
 u32 rtw89_mac_get_sb(struct rtw89_dev *rtwdev);
 bool rtw89_mac_get_ctrl_path(struct rtw89_dev *rtwdev);
 int rtw89_mac_cfg_ctrl_path(struct rtw89_dev *rtwdev, bool wl);
 int rtw89_mac_cfg_ctrl_path_v1(struct rtw89_dev *rtwdev, bool wl);
+int rtw89_mac_cfg_ctrl_path_v2(struct rtw89_dev *rtwdev, bool wl);
 void rtw89_mac_power_mode_change(struct rtw89_dev *rtwdev, bool enter);
 void rtw89_mac_notify_wake(struct rtw89_dev *rtwdev);
 
