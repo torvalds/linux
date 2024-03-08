@@ -110,7 +110,7 @@ struct sched_domain {
 	unsigned long last_decay_max_lb_cost;
 
 #ifdef CONFIG_SCHEDSTATS
-	/* load_balance() stats */
+	/* sched_balance_rq() stats */
 	unsigned int lb_count[CPU_MAX_IDLE_TYPES];
 	unsigned int lb_failed[CPU_MAX_IDLE_TYPES];
 	unsigned int lb_balanced[CPU_MAX_IDLE_TYPES];
