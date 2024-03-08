@@ -90,8 +90,9 @@ static atomic64_t ap_bindings_complete_count = ATOMIC64_INIT(0);
 /* completion for APQN bindings complete */
 static DECLARE_COMPLETION(ap_apqn_bindings_complete);
 
-static struct ap_config_info *ap_qci_info;
-static struct ap_config_info *ap_qci_info_old;
+static struct ap_config_info qci[2];
+static struct ap_config_info *const ap_qci_info = &qci[0];
+static struct ap_config_info *const ap_qci_info_old = &qci[1];
 
 /*
  * AP bus related debug feature things.
@@ -203,9 +204,7 @@ static int ap_apft_available(void)
  */
 static inline int ap_qact_available(void)
 {
-	if (ap_qci_info)
-		return ap_qci_info->qact;
-	return 0;
+	return ap_qci_info->qact;
 }
 
 /*
@@ -215,9 +214,7 @@ static inline int ap_qact_available(void)
  */
 int ap_sb_available(void)
 {
-	if (ap_qci_info)
-		return ap_qci_info->apsb;
-	return 0;
+	return ap_qci_info->apsb;
 }
 
 /*
@@ -229,23 +226,6 @@ bool ap_is_se_guest(void)
 }
 EXPORT_SYMBOL(ap_is_se_guest);
 
-/*
- * ap_fetch_qci_info(): Fetch cryptographic config info
- *
- * Returns the ap configuration info fetched via PQAP(QCI).
- * On success 0 is returned, on failure a negative errno
- * is returned, e.g. if the PQAP(QCI) instruction is not
- * available, the return value will be -EOPNOTSUPP.
- */
-static inline int ap_fetch_qci_info(struct ap_config_info *info)
-{
-	if (!ap_qci_available())
-		return -EOPNOTSUPP;
-	if (!info)
-		return -EINVAL;
-	return ap_qci(info);
-}
-
 /**
  * ap_init_qci_info(): Allocate and query qci config info.
  * Does also update the static variables ap_max_domain_id
@@ -253,27 +233,12 @@ static inline int ap_fetch_qci_info(struct ap_config_info *info)
  */
 static void __init ap_init_qci_info(void)
 {
-	if (!ap_qci_available()) {
+	if (!ap_qci_available() ||
+	    ap_qci(ap_qci_info)) {
 		AP_DBF_INFO("%s QCI not supported\n", __func__);
 		return;
 	}
-
-	ap_qci_info = kzalloc(sizeof(*ap_qci_info), GFP_KERNEL);
-	if (!ap_qci_info)
-		return;
-	ap_qci_info_old = kzalloc(sizeof(*ap_qci_info_old), GFP_KERNEL);
-	if (!ap_qci_info_old) {
-		kfree(ap_qci_info);
-		ap_qci_info = NULL;
-		return;
-	}
-	if (ap_fetch_qci_info(ap_qci_info) != 0) {
-		kfree(ap_qci_info);
-		kfree(ap_qci_info_old);
-		ap_qci_info = NULL;
-		ap_qci_info_old = NULL;
-		return;
-	}
+	memcpy(ap_qci_info_old, ap_qci_info, sizeof(*ap_qci_info));
 	AP_DBF_INFO("%s successful fetched initial qci info\n", __func__);
 
 	if (ap_qci_info->apxa) {
@@ -288,8 +253,6 @@ static void __init ap_init_qci_info(void)
 				    __func__, ap_max_domain_id);
 		}
 	}
-
-	memcpy(ap_qci_info_old, ap_qci_info, sizeof(*ap_qci_info));
 }
 
 /*
@@ -312,7 +275,7 @@ static inline int ap_test_config_card_id(unsigned int id)
 {
 	if (id > ap_max_adapter_id)
 		return 0;
-	if (ap_qci_info)
+	if (ap_qci_info->flags)
 		return ap_test_config(ap_qci_info->apm, id);
 	return 1;
 }
@@ -329,7 +292,7 @@ int ap_test_config_usage_domain(unsigned int domain)
 {
 	if (domain > ap_max_domain_id)
 		return 0;
-	if (ap_qci_info)
+	if (ap_qci_info->flags)
 		return ap_test_config(ap_qci_info->aqm, domain);
 	return 1;
 }
@@ -1234,7 +1197,7 @@ static BUS_ATTR_RW(ap_domain);
 
 static ssize_t ap_control_domain_mask_show(const struct bus_type *bus, char *buf)
 {
-	if (!ap_qci_info)	/* QCI not supported */
+	if (!ap_qci_info->flags)	/* QCI not supported */
 		return sysfs_emit(buf, "not supported\n");
 
 	return sysfs_emit(buf, "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
@@ -1248,7 +1211,7 @@ static BUS_ATTR_RO(ap_control_domain_mask);
 
 static ssize_t ap_usage_domain_mask_show(const struct bus_type *bus, char *buf)
 {
-	if (!ap_qci_info)	/* QCI not supported */
+	if (!ap_qci_info->flags)	/* QCI not supported */
 		return sysfs_emit(buf, "not supported\n");
 
 	return sysfs_emit(buf, "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
@@ -1262,7 +1225,7 @@ static BUS_ATTR_RO(ap_usage_domain_mask);
 
 static ssize_t ap_adapter_mask_show(const struct bus_type *bus, char *buf)
 {
-	if (!ap_qci_info)	/* QCI not supported */
+	if (!ap_qci_info->flags)	/* QCI not supported */
 		return sysfs_emit(buf, "not supported\n");
 
 	return sysfs_emit(buf, "0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
@@ -1595,7 +1558,7 @@ static ssize_t features_show(const struct bus_type *bus, char *buf)
 {
 	int n = 0;
 
-	if (!ap_qci_info)	/* QCI not supported */
+	if (!ap_qci_info->flags)	/* QCI not supported */
 		return sysfs_emit(buf, "-\n");
 
 	if (ap_qci_info->apsc)
@@ -2158,11 +2121,11 @@ static inline void ap_scan_adapter(int ap)
  */
 static bool ap_get_configuration(void)
 {
-	if (!ap_qci_info)	/* QCI not supported */
+	if (!ap_qci_info->flags)	/* QCI not supported */
 		return false;
 
 	memcpy(ap_qci_info_old, ap_qci_info, sizeof(*ap_qci_info));
-	ap_fetch_qci_info(ap_qci_info);
+	ap_qci(ap_qci_info);
 
 	return memcmp(ap_qci_info, ap_qci_info_old,
 		      sizeof(struct ap_config_info)) != 0;
@@ -2179,7 +2142,7 @@ static bool ap_config_has_new_aps(void)
 
 	unsigned long m[BITS_TO_LONGS(AP_DEVICES)];
 
-	if (!ap_qci_info)
+	if (!ap_qci_info->flags)
 		return false;
 
 	bitmap_andnot(m, (unsigned long *)ap_qci_info->apm,
@@ -2200,7 +2163,7 @@ static bool ap_config_has_new_doms(void)
 {
 	unsigned long m[BITS_TO_LONGS(AP_DOMAINS)];
 
-	if (!ap_qci_info)
+	if (!ap_qci_info->flags)
 		return false;
 
 	bitmap_andnot(m, (unsigned long *)ap_qci_info->aqm,
@@ -2427,7 +2390,6 @@ out_bus:
 out:
 	if (ap_irq_flag)
 		unregister_adapter_interrupt(&ap_airq);
-	kfree(ap_qci_info);
 	return rc;
 }
 device_initcall(ap_module_init);
