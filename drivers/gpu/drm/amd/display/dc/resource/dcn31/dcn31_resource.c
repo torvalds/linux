@@ -75,7 +75,6 @@
 #include "dcn30/dcn30_dwb.h"
 #include "dcn30/dcn30_mmhubbub.h"
 
-// TODO: change include headers /amd/include/asic_reg after upstream
 #include "yellow_carp_offset.h"
 #include "dcn/dcn_3_1_2_offset.h"
 #include "dcn/dcn_3_1_2_sh_mask.h"
@@ -1771,7 +1770,7 @@ bool dcn31_validate_bandwidth(struct dc *dc,
 	out = dcn30_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate, true);
 	DC_FP_END();
 
-	// Disable fast_validate to set min dcfclk in alculate_wm_and_dlg
+	// Disable fast_validate to set min dcfclk in calculate_wm_and_dlg
 	if (pipe_cnt == 0)
 		fast_validate = false;
 
