@@ -366,7 +366,7 @@ static int cs35l56_sdw_bus_config(struct sdw_slave *peripheral,
 	dev_dbg(cs35l56->base.dev, "%s: sclk=%u c=%u r=%u\n",
 		__func__, sclk, params->col, params->row);
 
-	if (cs35l56->base.rev < 0xb0)
+	if ((cs35l56->base.type == 0x56) && (cs35l56->base.rev < 0xb0))
 		return cs35l56_a1_kick_divider(cs35l56, peripheral);
 
 	return 0;
@@ -543,6 +543,7 @@ static const struct dev_pm_ops cs35l56_sdw_pm = {
 
 static const struct sdw_device_id cs35l56_sdw_id[] = {
 	SDW_SLAVE_ENTRY(0x01FA, 0x3556, 0),
+	SDW_SLAVE_ENTRY(0x01FA, 0x3557, 0),
 	{},
 };
 MODULE_DEVICE_TABLE(sdw, cs35l56_sdw_id);

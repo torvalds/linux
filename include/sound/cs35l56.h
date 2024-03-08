@@ -257,6 +257,7 @@ struct cs35l56_base {
 	struct regmap *regmap;
 	int irq;
 	struct mutex irq_lock;
+	u8 type;
 	u8 rev;
 	bool init_done;
 	bool fw_patched;

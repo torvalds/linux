@@ -458,13 +458,15 @@ static void cs35l56_hda_request_firmware_files(struct cs35l56_hda *cs35l56,
 
 	if (preloaded_fw_ver) {
 		snprintf(base_name, sizeof(base_name),
-			 "cirrus/cs35l56-%02x%s-%06x-dsp1-misc",
+			 "cirrus/cs35l%02x-%02x%s-%06x-dsp1-misc",
+			 cs35l56->base.type,
 			 cs35l56->base.rev,
 			 cs35l56->base.secured ? "-s" : "",
 			 preloaded_fw_ver & 0xffffff);
 	} else {
 		snprintf(base_name, sizeof(base_name),
-			 "cirrus/cs35l56-%02x%s-dsp1-misc",
+			 "cirrus/cs35l%02x-%02x%s-dsp1-misc",
+			 cs35l56->base.type,
 			 cs35l56->base.rev,
 			 cs35l56->base.secured ? "-s" : "");
 	}
@@ -834,9 +836,10 @@ static int cs35l56_hda_system_resume(struct device *dev)
 	return 0;
 }
 
-static int cs35l56_hda_read_acpi(struct cs35l56_hda *cs35l56, int id)
+static int cs35l56_hda_read_acpi(struct cs35l56_hda *cs35l56, int hid, int id)
 {
 	u32 values[HDA_MAX_COMPONENTS];
+	char hid_string[8];
 	struct acpi_device *adev;
 	const char *property, *sub;
 	size_t nval;
@@ -847,7 +850,8 @@ static int cs35l56_hda_read_acpi(struct cs35l56_hda *cs35l56, int id)
 	 * the serial-multi-instantiate driver, so lookup the node by HID
 	 */
 	if (!ACPI_COMPANION(cs35l56->base.dev)) {
-		adev = acpi_dev_get_first_match_dev("CSC3556", NULL, -1);
+		snprintf(hid_string, sizeof(hid_string), "CSC%04X", hid);
+		adev = acpi_dev_get_first_match_dev(hid_string, NULL, -1);
 		if (!adev) {
 			dev_err(cs35l56->base.dev, "Failed to find an ACPI device for %s\n",
 				dev_name(cs35l56->base.dev));
@@ -935,14 +939,14 @@ err:
 	return ret;
 }
 
-int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int id)
+int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int hid, int id)
 {
 	int ret;
 
 	mutex_init(&cs35l56->base.irq_lock);
 	dev_set_drvdata(cs35l56->base.dev, cs35l56);
 
-	ret = cs35l56_hda_read_acpi(cs35l56, id);
+	ret = cs35l56_hda_read_acpi(cs35l56, hid, id);
 	if (ret)
 		goto err;
 

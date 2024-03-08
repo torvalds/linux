@@ -693,12 +693,16 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	devid &= CS35L56_DEVID_MASK;
 
 	switch (devid) {
+	case 0x35A54:
 	case 0x35A56:
+	case 0x35A57:
 		break;
 	default:
 		dev_err(cs35l56_base->dev, "Unknown device %x\n", devid);
 		return ret;
 	}
+
+	cs35l56_base->type = devid & 0xFF;
 
 	ret = regmap_read(cs35l56_base->regmap, CS35L56_DSP_RESTRICT_STS1, &secured);
 	if (ret) {
@@ -720,8 +724,8 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	if (ret)
 		return ret;
 
-	dev_info(cs35l56_base->dev, "Cirrus Logic CS35L56%s Rev %02X OTP%d fw:%d.%d.%d (patched=%u)\n",
-		 cs35l56_base->secured ? "s" : "", cs35l56_base->rev, otpid,
+	dev_info(cs35l56_base->dev, "Cirrus Logic CS35L%02X%s Rev %02X OTP%d fw:%d.%d.%d (patched=%u)\n",
+		 cs35l56_base->type, cs35l56_base->secured ? "s" : "", cs35l56_base->rev, otpid,
 		 fw_ver >> 16, (fw_ver >> 8) & 0xff, fw_ver & 0xff, !fw_missing);
 
 	/* Wake source and *_BLOCKED interrupts default to unmasked, so mask them */
