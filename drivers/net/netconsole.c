@@ -42,12 +42,14 @@ MODULE_AUTHOR("Maintainer: Matt Mackall <mpm@selenic.com>");
 MODULE_DESCRIPTION("Console driver for network interfaces");
 MODULE_LICENSE("GPL");
 
-#define MAX_PARAM_LENGTH	256
-#define MAX_USERDATA_NAME_LENGTH	54
-#define MAX_USERDATA_VALUE_LENGTH	200
+#define MAX_PARAM_LENGTH		256
 #define MAX_USERDATA_ENTRY_LENGTH	256
+#define MAX_USERDATA_VALUE_LENGTH	200
+/* The number 3 comes from userdata entry format characters (' ', '=', '\n') */
+#define MAX_USERDATA_NAME_LENGTH	(MAX_USERDATA_ENTRY_LENGTH - \
+					MAX_USERDATA_VALUE_LENGTH - 3)
 #define MAX_USERDATA_ITEMS		16
-#define MAX_PRINT_CHUNK		1000
+#define MAX_PRINT_CHUNK			1000
 
 static char config[MAX_PARAM_LENGTH];
 module_param_string(netconsole, config, MAX_PARAM_LENGTH, 0);
@@ -671,7 +673,7 @@ static void update_userdata(struct netconsole_target *nt)
 		 * checked to not exceed MAX items with child_count above
 		 */
 		complete_idx += scnprintf(&nt->userdata_complete[complete_idx],
-					  MAX_USERDATA_ENTRY_LENGTH, "%s=%s\n",
+					  MAX_USERDATA_ENTRY_LENGTH, " %s=%s\n",
 					  item->ci_name, udm_item->value);
 	}
 	nt->userdata_length = strnlen(nt->userdata_complete,

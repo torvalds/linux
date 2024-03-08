@@ -180,7 +180,7 @@ Custom user data can be appended to the end of messages with netconsole
 dynamic configuration enabled. User data entries can be modified without
 changing the "enabled" attribute of a target.
 
-Directories (keys) under `userdata` are limited to 54 character length, and
+Directories (keys) under `userdata` are limited to 53 character length, and
 data in `userdata/<key>/value` are limited to 200 bytes::
 
  cd /sys/kernel/config/netconsole && mkdir cmdline0
@@ -197,8 +197,8 @@ Messages will now include this additional user data::
 Sends::
 
  12,607,22085407756,-;This is a message
- foo=bar
- qux=baz
+  foo=bar
+  qux=baz
 
 Preview the userdata that will be appended with::
 
@@ -218,7 +218,7 @@ The `qux` key is omitted since it has no value::
 
  echo "This is a message" > /dev/kmsg
  12,607,22085407756,-;This is a message
- foo=bar
+  foo=bar
 
 Delete `userdata` entries with `rmdir`::
 
