@@ -694,20 +694,12 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 	if (msg->msg_inq > 0)
 		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
 
-	if (!(req->flags & REQ_F_APOLL_MULTISHOT)) {
-		io_req_set_res(req, *ret, cflags);
-		*ret = IOU_OK;
-		return true;
-	}
-
-	if (mshot_finished)
-		goto finish;
-
 	/*
 	 * Fill CQE for this receive and see if we should keep trying to
 	 * receive from this socket.
 	 */
-	if (io_fill_cqe_req_aux(req, issue_flags & IO_URING_F_COMPLETE_DEFER,
+	if ((req->flags & REQ_F_APOLL_MULTISHOT) && !mshot_finished &&
+	    io_fill_cqe_req_aux(req, issue_flags & IO_URING_F_COMPLETE_DEFER,
 				*ret, cflags | IORING_CQE_F_MORE)) {
 		struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 		int mshot_retry_ret = IOU_ISSUE_SKIP_COMPLETE;
@@ -727,8 +719,8 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 			*ret = -EAGAIN;
 		return true;
 	}
-	/* Otherwise stop multishot but use the current result. */
-finish:
+
+	/* Finish the request / stop multishot. */
 	io_req_set_res(req, *ret, cflags);
 
 	if (issue_flags & IO_URING_F_MULTISHOT)
