@@ -1582,6 +1582,7 @@ static void rcu_sr_put_wait_head(struct llist_node *node)
 /* Disabled by default. */
 static int rcu_normal_wake_from_gp;
 module_param(rcu_normal_wake_from_gp, int, 0644);
+static struct workqueue_struct *sync_wq;
 
 static void rcu_sr_normal_complete(struct llist_node *node)
 {
@@ -1680,7 +1681,7 @@ static void rcu_sr_normal_gp_cleanup(void)
 	 * of outstanding users(if still left) and releasing wait-heads
 	 * added by rcu_sr_normal_gp_init() call.
 	 */
-	schedule_work(&rcu_state.srs_cleanup_work);
+	queue_work(sync_wq, &rcu_state.srs_cleanup_work);
 }
 
 /*
@@ -5584,6 +5585,9 @@ void __init rcu_init(void)
 	/* Create workqueue for Tree SRCU and for expedited GPs. */
 	rcu_gp_wq = alloc_workqueue("rcu_gp", WQ_MEM_RECLAIM, 0);
 	WARN_ON(!rcu_gp_wq);
+
+	sync_wq = alloc_workqueue("sync_wq", WQ_MEM_RECLAIM, 0);
+	WARN_ON(!sync_wq);
 
 	/* Fill in default value for rcutree.qovld boot parameter. */
 	/* -After- the rcu_node ->lock fields are initialized! */
