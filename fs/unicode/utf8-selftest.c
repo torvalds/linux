@@ -14,8 +14,8 @@
 
 #include "utf8n.h"
 
-unsigned int failed_tests;
-unsigned int total_tests;
+static unsigned int failed_tests;
+static unsigned int total_tests;
 
 /* Tests will be based on this version. */
 #define UTF8_LATEST	UNICODE_AGE(12, 1, 0)
