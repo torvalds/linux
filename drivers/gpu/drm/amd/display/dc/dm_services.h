@@ -275,6 +275,16 @@ void dm_perf_trace_timestamp(const char *func_name, unsigned int line, struct dc
 #define PERF_TRACE_CTX(__CTX)	dm_perf_trace_timestamp(__func__, __LINE__, __CTX)
 
 /*
+ * SMU message tracing
+ */
+void dm_trace_smu_msg(uint32_t msg_id, uint32_t param_in, struct dc_context *ctx);
+void dm_trace_smu_delay(uint32_t delay, struct dc_context *ctx);
+
+#define TRACE_SMU_MSG(msg_id, param_in, ctx)	dm_trace_smu_msg(msg_id, param_in, ctx)
+#define TRACE_SMU_DELAY(response_delay, ctx)	dm_trace_smu_delay(response_delay, ctx)
+
+
+/*
  * DMUB Interfaces
  */
 bool dm_execute_dmub_cmd(const struct dc_context *ctx, union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type);
