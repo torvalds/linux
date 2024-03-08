@@ -423,7 +423,7 @@ static int ynl_msg_end(struct ynl_sock *ys, struct nlmsghdr *nlh)
 	}
 	if (nlh->nlmsg_pid == YNL_MSG_OVERFLOW) {
 		yerr(ys, YNL_ERROR_INPUT_TOO_BIG,
-		     "Constructred message longer than internal buffer");
+		     "Constructed message longer than internal buffer");
 		return -EMSGSIZE;
 	}
 
