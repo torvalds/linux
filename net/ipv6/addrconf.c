@@ -717,7 +717,7 @@ errout:
 static u32 inet6_base_seq(const struct net *net)
 {
 	u32 res = atomic_read(&net->ipv6.dev_addr_genid) +
-		  net->dev_base_seq;
+		  READ_ONCE(net->dev_base_seq);
 
 	/* Must not return 0 (see nl_dump_check_consistent()).
 	 * Chose a value far away from 0.
@@ -2728,7 +2728,7 @@ int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
 		if (update_lft) {
 			ifp->valid_lft = valid_lft;
 			ifp->prefered_lft = prefered_lft;
-			ifp->tstamp = now;
+			WRITE_ONCE(ifp->tstamp, now);
 			flags = ifp->flags;
 			ifp->flags &= ~IFA_F_DEPRECATED;
 			spin_unlock_bh(&ifp->lock);
@@ -4896,13 +4896,13 @@ static int inet6_addr_modify(struct net *net, struct inet6_ifaddr *ifp,
 			IFA_F_HOMEADDRESS | IFA_F_MANAGETEMPADDR |
 			IFA_F_NOPREFIXROUTE);
 	ifp->flags |= cfg->ifa_flags;
-	ifp->tstamp = jiffies;
-	ifp->valid_lft = cfg->valid_lft;
-	ifp->prefered_lft = cfg->preferred_lft;
-	ifp->ifa_proto = cfg->ifa_proto;
+	WRITE_ONCE(ifp->tstamp, jiffies);
+	WRITE_ONCE(ifp->valid_lft, cfg->valid_lft);
+	WRITE_ONCE(ifp->prefered_lft, cfg->preferred_lft);
+	WRITE_ONCE(ifp->ifa_proto, cfg->ifa_proto);
 
 	if (cfg->rt_priority && cfg->rt_priority != ifp->rt_priority)
-		ifp->rt_priority = cfg->rt_priority;
+		WRITE_ONCE(ifp->rt_priority, cfg->rt_priority);
 
 	if (new_peer)
 		ifp->peer_addr = *cfg->peer_pfx;
@@ -5123,17 +5123,21 @@ struct inet6_fill_args {
 	enum addr_type_t type;
 };
 
-static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
+static int inet6_fill_ifaddr(struct sk_buff *skb,
+			     const struct inet6_ifaddr *ifa,
 			     struct inet6_fill_args *args)
 {
-	struct nlmsghdr  *nlh;
+	struct nlmsghdr *nlh;
 	u32 preferred, valid;
+	u32 flags, priority;
+	u8 proto;
 
 	nlh = nlmsg_put(skb, args->portid, args->seq, args->event,
 			sizeof(struct ifaddrmsg), args->flags);
 	if (!nlh)
 		return -EMSGSIZE;
 
+	flags = READ_ONCE(ifa->flags);
 	put_ifaddrmsg(nlh, ifa->prefix_len, ifa->flags, rt_scope(ifa->scope),
 		      ifa->idev->dev->ifindex);
 
@@ -5141,13 +5145,14 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 	    nla_put_s32(skb, IFA_TARGET_NETNSID, args->netnsid))
 		goto error;
 
-	spin_lock_bh(&ifa->lock);
-	if (!((ifa->flags&IFA_F_PERMANENT) &&
-	      (ifa->prefered_lft == INFINITY_LIFE_TIME))) {
-		preferred = ifa->prefered_lft;
-		valid = ifa->valid_lft;
+	preferred = READ_ONCE(ifa->prefered_lft);
+	valid = READ_ONCE(ifa->valid_lft);
+
+	if (!((flags & IFA_F_PERMANENT) &&
+	      (preferred == INFINITY_LIFE_TIME))) {
 		if (preferred != INFINITY_LIFE_TIME) {
-			long tval = (jiffies - ifa->tstamp)/HZ;
+			long tval = (jiffies - READ_ONCE(ifa->tstamp)) / HZ;
+
 			if (preferred > tval)
 				preferred -= tval;
 			else
@@ -5163,28 +5168,29 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 		preferred = INFINITY_LIFE_TIME;
 		valid = INFINITY_LIFE_TIME;
 	}
-	spin_unlock_bh(&ifa->lock);
 
 	if (!ipv6_addr_any(&ifa->peer_addr)) {
 		if (nla_put_in6_addr(skb, IFA_LOCAL, &ifa->addr) < 0 ||
 		    nla_put_in6_addr(skb, IFA_ADDRESS, &ifa->peer_addr) < 0)
 			goto error;
-	} else
+	} else {
 		if (nla_put_in6_addr(skb, IFA_ADDRESS, &ifa->addr) < 0)
 			goto error;
+	}
 
-	if (ifa->rt_priority &&
-	    nla_put_u32(skb, IFA_RT_PRIORITY, ifa->rt_priority))
+	priority = READ_ONCE(ifa->rt_priority);
+	if (priority && nla_put_u32(skb, IFA_RT_PRIORITY, priority))
 		goto error;
 
-	if (put_cacheinfo(skb, ifa->cstamp, ifa->tstamp, preferred, valid) < 0)
+	if (put_cacheinfo(skb, ifa->cstamp, READ_ONCE(ifa->tstamp),
+			  preferred, valid) < 0)
 		goto error;
 
-	if (nla_put_u32(skb, IFA_FLAGS, ifa->flags) < 0)
+	if (nla_put_u32(skb, IFA_FLAGS, flags) < 0)
 		goto error;
 
-	if (ifa->ifa_proto &&
-	    nla_put_u8(skb, IFA_PROTO, ifa->ifa_proto))
+	proto = READ_ONCE(ifa->ifa_proto);
+	if (proto && nla_put_u8(skb, IFA_PROTO, proto))
 		goto error;
 
 	nlmsg_end(skb, nlh);
@@ -5195,12 +5201,13 @@ error:
 	return -EMSGSIZE;
 }
 
-static int inet6_fill_ifmcaddr(struct sk_buff *skb, struct ifmcaddr6 *ifmca,
+static int inet6_fill_ifmcaddr(struct sk_buff *skb,
+			       const struct ifmcaddr6 *ifmca,
 			       struct inet6_fill_args *args)
 {
-	struct nlmsghdr  *nlh;
-	u8 scope = RT_SCOPE_UNIVERSE;
 	int ifindex = ifmca->idev->dev->ifindex;
+	u8 scope = RT_SCOPE_UNIVERSE;
+	struct nlmsghdr *nlh;
 
 	if (ipv6_addr_scope(&ifmca->mca_addr) & IFA_SITE)
 		scope = RT_SCOPE_SITE;
@@ -5218,7 +5225,7 @@ static int inet6_fill_ifmcaddr(struct sk_buff *skb, struct ifmcaddr6 *ifmca,
 
 	put_ifaddrmsg(nlh, 128, IFA_F_PERMANENT, scope, ifindex);
 	if (nla_put_in6_addr(skb, IFA_MULTICAST, &ifmca->mca_addr) < 0 ||
-	    put_cacheinfo(skb, ifmca->mca_cstamp, ifmca->mca_tstamp,
+	    put_cacheinfo(skb, ifmca->mca_cstamp, READ_ONCE(ifmca->mca_tstamp),
 			  INFINITY_LIFE_TIME, INFINITY_LIFE_TIME) < 0) {
 		nlmsg_cancel(skb, nlh);
 		return -EMSGSIZE;
@@ -5228,13 +5235,14 @@ static int inet6_fill_ifmcaddr(struct sk_buff *skb, struct ifmcaddr6 *ifmca,
 	return 0;
 }
 
-static int inet6_fill_ifacaddr(struct sk_buff *skb, struct ifacaddr6 *ifaca,
+static int inet6_fill_ifacaddr(struct sk_buff *skb,
+			       const struct ifacaddr6 *ifaca,
 			       struct inet6_fill_args *args)
 {
 	struct net_device *dev = fib6_info_nh_dev(ifaca->aca_rt);
 	int ifindex = dev ? dev->ifindex : 1;
-	struct nlmsghdr  *nlh;
 	u8 scope = RT_SCOPE_UNIVERSE;
+	struct nlmsghdr *nlh;
 
 	if (ipv6_addr_scope(&ifaca->aca_addr) & IFA_SITE)
 		scope = RT_SCOPE_SITE;
@@ -5252,7 +5260,7 @@ static int inet6_fill_ifacaddr(struct sk_buff *skb, struct ifacaddr6 *ifaca,
 
 	put_ifaddrmsg(nlh, 128, IFA_F_PERMANENT, scope, ifindex);
 	if (nla_put_in6_addr(skb, IFA_ANYCAST, &ifaca->aca_addr) < 0 ||
-	    put_cacheinfo(skb, ifaca->aca_cstamp, ifaca->aca_tstamp,
+	    put_cacheinfo(skb, ifaca->aca_cstamp, READ_ONCE(ifaca->aca_tstamp),
 			  INFINITY_LIFE_TIME, INFINITY_LIFE_TIME) < 0) {
 		nlmsg_cancel(skb, nlh);
 		return -EMSGSIZE;
@@ -5263,24 +5271,23 @@ static int inet6_fill_ifacaddr(struct sk_buff *skb, struct ifacaddr6 *ifaca,
 }
 
 /* called with rcu_read_lock() */
-static int in6_dump_addrs(struct inet6_dev *idev, struct sk_buff *skb,
-			  struct netlink_callback *cb, int s_ip_idx,
+static int in6_dump_addrs(const struct inet6_dev *idev, struct sk_buff *skb,
+			  struct netlink_callback *cb, int *s_ip_idx,
 			  struct inet6_fill_args *fillargs)
 {
-	struct ifmcaddr6 *ifmca;
-	struct ifacaddr6 *ifaca;
+	const struct ifmcaddr6 *ifmca;
+	const struct ifacaddr6 *ifaca;
 	int ip_idx = 0;
-	int err = 1;
+	int err = 0;
 
-	read_lock_bh(&idev->lock);
 	switch (fillargs->type) {
 	case UNICAST_ADDR: {
-		struct inet6_ifaddr *ifa;
+		const struct inet6_ifaddr *ifa;
 		fillargs->event = RTM_NEWADDR;
 
 		/* unicast address incl. temp addr */
-		list_for_each_entry(ifa, &idev->addr_list, if_list) {
-			if (ip_idx < s_ip_idx)
+		list_for_each_entry_rcu(ifa, &idev->addr_list, if_list) {
+			if (ip_idx < *s_ip_idx)
 				goto next;
 			err = inet6_fill_ifaddr(skb, ifa, fillargs);
 			if (err < 0)
@@ -5292,27 +5299,25 @@ next:
 		break;
 	}
 	case MULTICAST_ADDR:
-		read_unlock_bh(&idev->lock);
 		fillargs->event = RTM_GETMULTICAST;
 
 		/* multicast address */
 		for (ifmca = rcu_dereference(idev->mc_list);
 		     ifmca;
 		     ifmca = rcu_dereference(ifmca->next), ip_idx++) {
-			if (ip_idx < s_ip_idx)
+			if (ip_idx < *s_ip_idx)
 				continue;
 			err = inet6_fill_ifmcaddr(skb, ifmca, fillargs);
 			if (err < 0)
 				break;
 		}
-		read_lock_bh(&idev->lock);
 		break;
 	case ANYCAST_ADDR:
 		fillargs->event = RTM_GETANYCAST;
 		/* anycast address */
 		for (ifaca = rcu_dereference(idev->ac_list); ifaca;
 		     ifaca = rcu_dereference(ifaca->aca_next), ip_idx++) {
-			if (ip_idx < s_ip_idx)
+			if (ip_idx < *s_ip_idx)
 				continue;
 			err = inet6_fill_ifacaddr(skb, ifaca, fillargs);
 			if (err < 0)
@@ -5322,8 +5327,7 @@ next:
 	default:
 		break;
 	}
-	read_unlock_bh(&idev->lock);
-	cb->args[2] = ip_idx;
+	*s_ip_idx = err ? ip_idx : 0;
 	return err;
 }
 
@@ -5386,6 +5390,7 @@ static int inet6_valid_dump_ifaddr_req(const struct nlmsghdr *nlh,
 static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 			   enum addr_type_t type)
 {
+	struct net *tgt_net = sock_net(skb->sk);
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct inet6_fill_args fillargs = {
 		.portid = NETLINK_CB(cb->skb).portid,
@@ -5394,72 +5399,52 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 		.netnsid = -1,
 		.type = type,
 	};
-	struct net *tgt_net = sock_net(skb->sk);
-	int idx, s_idx, s_ip_idx;
-	int h, s_h;
+	struct {
+		unsigned long ifindex;
+		int ip_idx;
+	} *ctx = (void *)cb->ctx;
 	struct net_device *dev;
 	struct inet6_dev *idev;
-	struct hlist_head *head;
 	int err = 0;
-
-	s_h = cb->args[0];
-	s_idx = idx = cb->args[1];
-	s_ip_idx = cb->args[2];
 
 	rcu_read_lock();
 	if (cb->strict_check) {
 		err = inet6_valid_dump_ifaddr_req(nlh, &fillargs, &tgt_net,
 						  skb->sk, cb);
 		if (err < 0)
-			goto put_tgt_net;
+			goto done;
 
 		err = 0;
 		if (fillargs.ifindex) {
-			dev = __dev_get_by_index(tgt_net, fillargs.ifindex);
-			if (!dev) {
-				err = -ENODEV;
-				goto put_tgt_net;
-			}
+			err = -ENODEV;
+			dev = dev_get_by_index_rcu(tgt_net, fillargs.ifindex);
+			if (!dev)
+				goto done;
 			idev = __in6_dev_get(dev);
-			if (idev) {
-				err = in6_dump_addrs(idev, skb, cb, s_ip_idx,
+			if (idev)
+				err = in6_dump_addrs(idev, skb, cb,
+						     &ctx->ip_idx,
 						     &fillargs);
-				if (err > 0)
-					err = 0;
-			}
-			goto put_tgt_net;
+			goto done;
 		}
 	}
 
 	cb->seq = inet6_base_seq(tgt_net);
-	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
-		idx = 0;
-		head = &tgt_net->dev_index_head[h];
-		hlist_for_each_entry_rcu(dev, head, index_hlist) {
-			if (idx < s_idx)
-				goto cont;
-			if (h > s_h || idx > s_idx)
-				s_ip_idx = 0;
-			idev = __in6_dev_get(dev);
-			if (!idev)
-				goto cont;
-
-			if (in6_dump_addrs(idev, skb, cb, s_ip_idx,
-					   &fillargs) < 0)
-				goto done;
-cont:
-			idx++;
-		}
+	for_each_netdev_dump(tgt_net, dev, ctx->ifindex) {
+		idev = __in6_dev_get(dev);
+		if (!idev)
+			continue;
+		err = in6_dump_addrs(idev, skb, cb, &ctx->ip_idx,
+				     &fillargs);
+		if (err < 0)
+			goto done;
 	}
 done:
-	cb->args[0] = h;
-	cb->args[1] = idx;
-put_tgt_net:
 	rcu_read_unlock();
 	if (fillargs.netnsid >= 0)
 		put_net(tgt_net);
 
-	return skb->len ? : err;
+	return err;
 }
 
 static int inet6_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
@@ -7469,15 +7454,18 @@ int __init addrconf_init(void)
 		goto errout;
 	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETADDR,
 				   inet6_rtm_getaddr, inet6_dump_ifaddr,
-				   RTNL_FLAG_DOIT_UNLOCKED);
+				   RTNL_FLAG_DOIT_UNLOCKED |
+				   RTNL_FLAG_DUMP_UNLOCKED);
 	if (err < 0)
 		goto errout;
 	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETMULTICAST,
-				   NULL, inet6_dump_ifmcaddr, 0);
+				   NULL, inet6_dump_ifmcaddr,
+				   RTNL_FLAG_DUMP_UNLOCKED);
 	if (err < 0)
 		goto errout;
 	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETANYCAST,
-				   NULL, inet6_dump_ifacaddr, 0);
+				   NULL, inet6_dump_ifacaddr,
+				   RTNL_FLAG_DUMP_UNLOCKED);
 	if (err < 0)
 		goto errout;
 	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETNETCONF,
