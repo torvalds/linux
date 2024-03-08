@@ -32,6 +32,9 @@
  * and are not exported to drivers.
  */
 
+#ifndef __DRM_CRTC_INTERNAL_H__
+#define __DRM_CRTC_INTERNAL_H__
+
 #include <linux/err.h>
 #include <linux/types.h>
 
@@ -305,3 +308,5 @@ drm_edid_load_firmware(struct drm_connector *connector)
 	return ERR_PTR(-ENOENT);
 }
 #endif
+
+#endif /* __DRM_CRTC_INTERNAL_H__ */
