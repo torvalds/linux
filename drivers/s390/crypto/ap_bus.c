@@ -2273,7 +2273,66 @@ static void ap_scan_bus_wq_callback(struct work_struct *unused)
 	}
 }
 
-static int __init ap_debug_init(void)
+static inline int __init ap_async_init(void)
+{
+	int rc;
+
+	/* Setup the AP bus rescan timer. */
+	timer_setup(&ap_scan_bus_timer, ap_scan_bus_timer_callback, 0);
+
+	/*
+	 * Setup the high resolution poll timer.
+	 * If we are running under z/VM adjust polling to z/VM polling rate.
+	 */
+	if (MACHINE_IS_VM)
+		poll_high_timeout = 1500000;
+	hrtimer_init(&ap_poll_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	ap_poll_timer.function = ap_poll_timeout;
+
+	queue_work(system_long_wq, &ap_scan_bus_work);
+
+	/* Start the low priority AP bus poll thread. */
+	if (!ap_thread_flag)
+		return 0;
+
+	rc = ap_poll_thread_start();
+	if (rc)
+		goto out;
+
+	return 0;
+
+out:
+	cancel_work(&ap_scan_bus_work);
+	hrtimer_cancel(&ap_poll_timer);
+	timer_delete(&ap_scan_bus_timer);
+	return rc;
+}
+
+static inline void ap_irq_exit(void)
+{
+	if (ap_irq_flag)
+		unregister_adapter_interrupt(&ap_airq);
+}
+
+static inline int __init ap_irq_init(void)
+{
+	int rc;
+
+	if (!ap_interrupts_available() || !ap_useirq)
+		return 0;
+
+	rc = register_adapter_interrupt(&ap_airq);
+	ap_irq_flag = (rc == 0);
+
+	return rc;
+}
+
+static inline void ap_debug_exit(void)
+{
+	debug_unregister(ap_dbf_info);
+}
+
+static inline int __init ap_debug_init(void)
 {
 	ap_dbf_info = debug_register("ap", 2, 1,
 				     AP_DBF_MAX_SPRINTF_ARGS * sizeof(long));
@@ -2342,15 +2401,14 @@ static int __init ap_module_init(void)
 	}
 
 	/* enable interrupts if available */
-	if (ap_interrupts_available() && ap_useirq) {
-		rc = register_adapter_interrupt(&ap_airq);
-		ap_irq_flag = (rc == 0);
-	}
+	rc = ap_irq_init();
+	if (rc)
+		goto out;
 
 	/* Create /sys/bus/ap. */
 	rc = bus_register(&ap_bus_type);
 	if (rc)
-		goto out;
+		goto out_irq;
 
 	/* Create /sys/devices/ap. */
 	ap_root_device = root_device_register("ap");
@@ -2359,37 +2417,21 @@ static int __init ap_module_init(void)
 		goto out_bus;
 	ap_root_device->bus = &ap_bus_type;
 
-	/* Setup the AP bus rescan timer. */
-	timer_setup(&ap_scan_bus_timer, ap_scan_bus_timer_callback, 0);
-
-	/*
-	 * Setup the high resolution poll timer.
-	 * If we are running under z/VM adjust polling to z/VM polling rate.
-	 */
-	if (MACHINE_IS_VM)
-		poll_high_timeout = 1500000;
-	hrtimer_init(&ap_poll_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	ap_poll_timer.function = ap_poll_timeout;
-
-	/* Start the low priority AP bus poll thread. */
-	if (ap_thread_flag) {
-		rc = ap_poll_thread_start();
-		if (rc)
-			goto out_work;
-	}
-
-	queue_work(system_long_wq, &ap_scan_bus_work);
+	/* Setup asynchronous work (timers, workqueue, etc). */
+	rc = ap_async_init();
+	if (rc)
+		goto out_device;
 
 	return 0;
 
-out_work:
-	hrtimer_cancel(&ap_poll_timer);
+out_device:
 	root_device_unregister(ap_root_device);
 out_bus:
 	bus_unregister(&ap_bus_type);
+out_irq:
+	ap_irq_exit();
 out:
-	if (ap_irq_flag)
-		unregister_adapter_interrupt(&ap_airq);
+	ap_debug_exit();
 	return rc;
 }
 device_initcall(ap_module_init);
