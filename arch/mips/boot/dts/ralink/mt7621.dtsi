@@ -115,13 +115,14 @@
 			compatible = "ns16550a";
 			reg = <0xc00 0x100>;
 
+			reg-io-width = <4>;
+			reg-shift = <2>;
+
 			clocks = <&sysc MT7621_CLK_UART1>;
 
 			interrupt-parent = <&gic>;
 			interrupts = <GIC_SHARED 26 IRQ_TYPE_LEVEL_HIGH>;
 
-			reg-shift = <2>;
-			reg-io-width = <4>;
 			no-loopback-test;
 
 			pinctrl-names = "default";
