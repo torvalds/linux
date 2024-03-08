@@ -3084,7 +3084,6 @@ static const struct net_device_ops amt_netdev_ops = {
 	.ndo_open		= amt_dev_open,
 	.ndo_stop		= amt_dev_stop,
 	.ndo_start_xmit         = amt_dev_xmit,
-	.ndo_get_stats64        = dev_get_tstats64,
 };
 
 static void amt_link_setup(struct net_device *dev)
