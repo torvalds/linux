@@ -3157,6 +3157,9 @@ int mlxsw_sp_nexthop_counter_enable(struct mlxsw_sp *mlxsw_sp,
 	struct devlink *devlink;
 	int err;
 
+	if (nh->counter_valid)
+		return 0;
+
 	devlink = priv_to_devlink(mlxsw_sp->core);
 	if (!devlink_dpipe_table_counter_enabled(devlink,
 						 MLXSW_SP_DPIPE_TABLE_NAME_ADJ))
