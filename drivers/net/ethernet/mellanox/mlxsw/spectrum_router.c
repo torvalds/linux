@@ -3108,7 +3108,8 @@ struct mlxsw_sp_nexthop_group_info {
 	int sum_norm_weight;
 	u8 adj_index_valid:1,
 	   gateway:1, /* routes using the group use a gateway */
-	   is_resilient:1;
+	   is_resilient:1,
+	   hw_stats:1;
 	struct list_head list; /* member in nh_res_grp_list */
 	struct mlxsw_sp_nexthop nexthops[] __counted_by(count);
 };
@@ -3189,15 +3190,17 @@ mlxsw_sp_nexthop_counter_free(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_nexthop_counter_enable(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_nexthop *nh)
 {
+	const char *table_adj = MLXSW_SP_DPIPE_TABLE_NAME_ADJ;
 	struct mlxsw_sp_nexthop_counter *nhct;
 	struct devlink *devlink;
+	bool dpipe_stats;
 
 	if (nh->counter)
 		return 0;
 
 	devlink = priv_to_devlink(mlxsw_sp->core);
-	if (!devlink_dpipe_table_counter_enabled(devlink,
-						 MLXSW_SP_DPIPE_TABLE_NAME_ADJ))
+	dpipe_stats = devlink_dpipe_table_counter_enabled(devlink, table_adj);
+	if (!(nh->nhgi->hw_stats || dpipe_stats))
 		return 0;
 
 	nhct = mlxsw_sp_nexthop_counter_alloc(mlxsw_sp);
@@ -3217,6 +3220,15 @@ void mlxsw_sp_nexthop_counter_disable(struct mlxsw_sp *mlxsw_sp,
 	nh->counter = NULL;
 }
 
+static int mlxsw_sp_nexthop_counter_update(struct mlxsw_sp *mlxsw_sp,
+					   struct mlxsw_sp_nexthop *nh)
+{
+	if (nh->nhgi->hw_stats)
+		return mlxsw_sp_nexthop_counter_enable(mlxsw_sp, nh);
+	mlxsw_sp_nexthop_counter_disable(mlxsw_sp, nh);
+	return 0;
+}
+
 int mlxsw_sp_nexthop_counter_get(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_nexthop *nh, u64 *p_counter)
 {
@@ -3224,7 +3236,7 @@ int mlxsw_sp_nexthop_counter_get(struct mlxsw_sp *mlxsw_sp,
 		return -EINVAL;
 
 	return mlxsw_sp_flow_counter_get(mlxsw_sp, nh->counter->counter_index,
-					 false, p_counter, NULL);
+					 true, p_counter, NULL);
 }
 
 struct mlxsw_sp_nexthop *mlxsw_sp_nexthop_next(struct mlxsw_sp_router *router,
@@ -3786,12 +3798,17 @@ mlxsw_sp_nexthop_group_update(struct mlxsw_sp *mlxsw_sp,
 		nh = &nhgi->nexthops[i];
 
 		if (!nh->should_offload) {
+			mlxsw_sp_nexthop_counter_disable(mlxsw_sp, nh);
 			nh->offloaded = 0;
 			continue;
 		}
 
 		if (nh->update || reallocate) {
 			int err = 0;
+
+			err = mlxsw_sp_nexthop_counter_update(mlxsw_sp, nh);
+			if (err)
+				return err;
 
 			err = mlxsw_sp_nexthop_update(mlxsw_sp, adj_index, nh,
 						      true, ratr_pl);
@@ -5052,7 +5069,6 @@ mlxsw_sp_nexthop_obj_init(struct mlxsw_sp *mlxsw_sp,
 		break;
 	}
 
-	mlxsw_sp_nexthop_counter_enable(mlxsw_sp, nh);
 	list_add_tail(&nh->router_list_node, &mlxsw_sp->router->nexthop_list);
 	nh->ifindex = dev->ifindex;
 	nh->id = nh_obj->id;
@@ -5077,7 +5093,6 @@ mlxsw_sp_nexthop_obj_init(struct mlxsw_sp *mlxsw_sp,
 
 err_type_init:
 	list_del(&nh->router_list_node);
-	mlxsw_sp_nexthop_counter_disable(mlxsw_sp, nh);
 	return err;
 }
 
@@ -5100,6 +5115,7 @@ mlxsw_sp_nexthop_obj_group_info_init(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_nexthop_group_info *nhgi;
 	struct mlxsw_sp_nexthop *nh;
 	bool is_resilient = false;
+	bool hw_stats = false;
 	unsigned int nhs;
 	int err, i;
 
@@ -5109,9 +5125,11 @@ mlxsw_sp_nexthop_obj_group_info_init(struct mlxsw_sp *mlxsw_sp,
 		break;
 	case NH_NOTIFIER_INFO_TYPE_GRP:
 		nhs = info->nh_grp->num_nh;
+		hw_stats = info->nh_grp->hw_stats;
 		break;
 	case NH_NOTIFIER_INFO_TYPE_RES_TABLE:
 		nhs = info->nh_res_table->num_nh_buckets;
+		hw_stats = info->nh_res_table->hw_stats;
 		is_resilient = true;
 		break;
 	default:
@@ -5126,6 +5144,7 @@ mlxsw_sp_nexthop_obj_group_info_init(struct mlxsw_sp *mlxsw_sp,
 	nhgi->gateway = mlxsw_sp_nexthop_obj_is_gateway(mlxsw_sp, info);
 	nhgi->is_resilient = is_resilient;
 	nhgi->count = nhs;
+	nhgi->hw_stats = hw_stats;
 	for (i = 0; i < nhgi->count; i++) {
 		struct nh_notifier_single_info *nh_obj;
 		int weight;
@@ -5347,6 +5366,43 @@ err_out:
 	return err;
 }
 
+static int mlxsw_sp_nexthop_obj_res_group_pre(struct mlxsw_sp *mlxsw_sp,
+					      struct nh_notifier_info *info)
+{
+	struct nh_notifier_grp_info *grp_info = info->nh_grp;
+	struct mlxsw_sp_nexthop_group_info *nhgi;
+	struct mlxsw_sp_nexthop_group *nh_grp;
+	int err;
+	int i;
+
+	nh_grp = mlxsw_sp_nexthop_obj_group_lookup(mlxsw_sp, info->id);
+	if (!nh_grp)
+		return 0;
+	nhgi = nh_grp->nhgi;
+
+	if (nhgi->hw_stats == grp_info->hw_stats)
+		return 0;
+
+	nhgi->hw_stats = grp_info->hw_stats;
+
+	for (i = 0; i < nhgi->count; i++) {
+		struct mlxsw_sp_nexthop *nh = &nhgi->nexthops[i];
+
+		if (nh->offloaded)
+			nh->update = 1;
+	}
+
+	err = mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh_grp);
+	if (err)
+		goto err_group_refresh;
+
+	return 0;
+
+err_group_refresh:
+	nhgi->hw_stats = !grp_info->hw_stats;
+	return err;
+}
+
 static int mlxsw_sp_nexthop_obj_new(struct mlxsw_sp *mlxsw_sp,
 				    struct nh_notifier_info *info)
 {
@@ -5523,6 +5579,79 @@ err_nexthop_obj_init:
 	return err;
 }
 
+static void
+mlxsw_sp_nexthop_obj_mp_hw_stats_get(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_nexthop_group_info *nhgi,
+				     struct nh_notifier_grp_hw_stats_info *info)
+{
+	int nhi;
+
+	for (nhi = 0; nhi < info->num_nh; nhi++) {
+		struct mlxsw_sp_nexthop *nh = &nhgi->nexthops[nhi];
+		u64 packets;
+		int err;
+
+		err = mlxsw_sp_nexthop_counter_get(mlxsw_sp, nh, &packets);
+		if (err)
+			continue;
+
+		nh_grp_hw_stats_report_delta(info, nhi, packets);
+	}
+}
+
+static void
+mlxsw_sp_nexthop_obj_res_hw_stats_get(struct mlxsw_sp *mlxsw_sp,
+				      struct mlxsw_sp_nexthop_group_info *nhgi,
+				      struct nh_notifier_grp_hw_stats_info *info)
+{
+	int nhi = -1;
+	int bucket;
+
+	for (bucket = 0; bucket < nhgi->count; bucket++) {
+		struct mlxsw_sp_nexthop *nh = &nhgi->nexthops[bucket];
+		u64 packets;
+		int err;
+
+		if (nhi == -1 || info->stats[nhi].id != nh->id) {
+			for (nhi = 0; nhi < info->num_nh; nhi++)
+				if (info->stats[nhi].id == nh->id)
+					break;
+			if (WARN_ON_ONCE(nhi == info->num_nh)) {
+				nhi = -1;
+				continue;
+			}
+		}
+
+		err = mlxsw_sp_nexthop_counter_get(mlxsw_sp, nh, &packets);
+		if (err)
+			continue;
+
+		nh_grp_hw_stats_report_delta(info, nhi, packets);
+	}
+}
+
+static void mlxsw_sp_nexthop_obj_hw_stats_get(struct mlxsw_sp *mlxsw_sp,
+					      struct nh_notifier_info *info)
+{
+	struct mlxsw_sp_nexthop_group_info *nhgi;
+	struct mlxsw_sp_nexthop_group *nh_grp;
+
+	if (info->type != NH_NOTIFIER_INFO_TYPE_GRP_HW_STATS)
+		return;
+
+	nh_grp = mlxsw_sp_nexthop_obj_group_lookup(mlxsw_sp, info->id);
+	if (!nh_grp)
+		return;
+	nhgi = nh_grp->nhgi;
+
+	if (nhgi->is_resilient)
+		mlxsw_sp_nexthop_obj_res_hw_stats_get(mlxsw_sp, nhgi,
+						      info->nh_grp_hw_stats);
+	else
+		mlxsw_sp_nexthop_obj_mp_hw_stats_get(mlxsw_sp, nhgi,
+						     info->nh_grp_hw_stats);
+}
+
 static int mlxsw_sp_nexthop_obj_event(struct notifier_block *nb,
 				      unsigned long event, void *ptr)
 {
@@ -5538,6 +5667,10 @@ static int mlxsw_sp_nexthop_obj_event(struct notifier_block *nb,
 	mutex_lock(&router->lock);
 
 	switch (event) {
+	case NEXTHOP_EVENT_RES_TABLE_PRE_REPLACE:
+		err = mlxsw_sp_nexthop_obj_res_group_pre(router->mlxsw_sp,
+							 info);
+		break;
 	case NEXTHOP_EVENT_REPLACE:
 		err = mlxsw_sp_nexthop_obj_new(router->mlxsw_sp, info);
 		break;
@@ -5547,6 +5680,9 @@ static int mlxsw_sp_nexthop_obj_event(struct notifier_block *nb,
 	case NEXTHOP_EVENT_BUCKET_REPLACE:
 		err = mlxsw_sp_nexthop_obj_bucket_replace(router->mlxsw_sp,
 							  info);
+		break;
+	case NEXTHOP_EVENT_HW_STATS_REPORT_DELTA:
+		mlxsw_sp_nexthop_obj_hw_stats_get(router->mlxsw_sp, info);
 		break;
 	default:
 		break;
