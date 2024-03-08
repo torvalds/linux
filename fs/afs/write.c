@@ -156,46 +156,6 @@ try_next_key:
 	return afs_put_operation(op);
 }
 
-#if 0 // TODO: Remove
-static void afs_upload_to_server(struct netfs_io_subrequest *subreq)
-{
-	struct afs_vnode *vnode = AFS_FS_I(subreq->rreq->inode);
-	ssize_t ret;
-
-	_enter("%x[%x],%zx",
-	       subreq->rreq->debug_id, subreq->debug_index, subreq->io_iter.count);
-
-	trace_netfs_sreq(subreq, netfs_sreq_trace_submit);
-	ret = afs_store_data(vnode, &subreq->io_iter, subreq->start);
-	netfs_write_subrequest_terminated(subreq, ret < 0 ? ret : subreq->len,
-					  false);
-}
-
-static void afs_upload_to_server_worker(struct work_struct *work)
-{
-	struct netfs_io_subrequest *subreq =
-		container_of(work, struct netfs_io_subrequest, work);
-
-	afs_upload_to_server(subreq);
-}
-
-/*
- * Set up write requests for a writeback slice.  We need to add a write request
- * for each write we want to make.
- */
-void afs_create_write_requests(struct netfs_io_request *wreq, loff_t start, size_t len)
-{
-	struct netfs_io_subrequest *subreq;
-
-	_enter("%x,%llx-%llx", wreq->debug_id, start, start + len);
-
-	subreq = netfs_create_write_request(wreq, NETFS_UPLOAD_TO_SERVER,
-					    start, len, afs_upload_to_server_worker);
-	if (subreq)
-		netfs_queue_write_request(subreq);
-}
-#endif
-
 /*
  * Writeback calls this when it finds a folio that needs uploading.  This isn't
  * called if writeback only has copy-to-cache to deal with.

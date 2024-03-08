@@ -60,40 +60,6 @@ static void v9fs_issue_write(struct netfs_io_subrequest *subreq)
 	netfs_write_subrequest_terminated(subreq, len ?: err, false);
 }
 
-#if 0 // TODO: Remove
-static void v9fs_upload_to_server(struct netfs_io_subrequest *subreq)
-{
-	struct p9_fid *fid = subreq->rreq->netfs_priv;
-	int err, len;
-
-	trace_netfs_sreq(subreq, netfs_sreq_trace_submit);
-	len = p9_client_write(fid, subreq->start, &subreq->io_iter, &err);
-	netfs_write_subrequest_terminated(subreq, len ?: err, false);
-}
-
-static void v9fs_upload_to_server_worker(struct work_struct *work)
-{
-	struct netfs_io_subrequest *subreq =
-		container_of(work, struct netfs_io_subrequest, work);
-
-	v9fs_upload_to_server(subreq);
-}
-
-/*
- * Set up write requests for a writeback slice.  We need to add a write request
- * for each write we want to make.
- */
-static void v9fs_create_write_requests(struct netfs_io_request *wreq, loff_t start, size_t len)
-{
-	struct netfs_io_subrequest *subreq;
-
-	subreq = netfs_create_write_request(wreq, NETFS_UPLOAD_TO_SERVER,
-					    start, len, v9fs_upload_to_server_worker);
-	if (subreq)
-		netfs_queue_write_request(subreq);
-}
-#endif
-
 /**
  * v9fs_issue_read - Issue a read from 9P
  * @subreq: The read to make
