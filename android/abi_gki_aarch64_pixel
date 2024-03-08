@@ -2378,6 +2378,8 @@
   __traceiter_android_vh_ufs_update_sysfs
   __traceiter_android_vh_use_amu_fie
   __traceiter_clock_set_rate
+  __traceiter_cma_alloc_finish
+  __traceiter_cma_alloc_start
   __traceiter_cpu_frequency
   __traceiter_cpu_idle
   __traceiter_device_pm_callback_end
@@ -2495,6 +2497,8 @@
   __tracepoint_android_vh_ufs_update_sysfs
   __tracepoint_android_vh_use_amu_fie
   __tracepoint_clock_set_rate
+  __tracepoint_cma_alloc_finish
+  __tracepoint_cma_alloc_start
   __tracepoint_cpu_frequency
   __tracepoint_cpu_idle
   __tracepoint_device_pm_callback_end
