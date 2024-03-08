@@ -1276,13 +1276,14 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 	bool tail_call_seen = false;
 	bool seen_exit = false;
 	u8 temp[BPF_MAX_INSN_SIZE + BPF_INSN_SAFETY];
-	u64 arena_vm_start;
+	u64 arena_vm_start, user_vm_start;
 	int i, excnt = 0;
 	int ilen, proglen = 0;
 	u8 *prog = temp;
 	int err;
 
 	arena_vm_start = bpf_arena_get_kern_vm_start(bpf_prog->aux->arena);
+	user_vm_start = bpf_arena_get_user_vm_start(bpf_prog->aux->arena);
 
 	detect_reg_usage(insn, insn_cnt, callee_regs_used,
 			 &tail_call_seen);
@@ -1350,6 +1351,40 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 			break;
 
 		case BPF_ALU64 | BPF_MOV | BPF_X:
+			if (insn->off == BPF_ADDR_SPACE_CAST &&
+			    insn->imm == 1U << 16) {
+				if (dst_reg != src_reg)
+					/* 32-bit mov */
+					emit_mov_reg(&prog, false, dst_reg, src_reg);
+				/* shl dst_reg, 32 */
+				maybe_emit_1mod(&prog, dst_reg, true);
+				EMIT3(0xC1, add_1reg(0xE0, dst_reg), 32);
+
+				/* or dst_reg, user_vm_start */
+				maybe_emit_1mod(&prog, dst_reg, true);
+				if (is_axreg(dst_reg))
+					EMIT1_off32(0x0D,  user_vm_start >> 32);
+				else
+					EMIT2_off32(0x81, add_1reg(0xC8, dst_reg),  user_vm_start >> 32);
+
+				/* rol dst_reg, 32 */
+				maybe_emit_1mod(&prog, dst_reg, true);
+				EMIT3(0xC1, add_1reg(0xC0, dst_reg), 32);
+
+				/* xor r11, r11 */
+				EMIT3(0x4D, 0x31, 0xDB);
+
+				/* test dst_reg32, dst_reg32; check if lower 32-bit are zero */
+				maybe_emit_mod(&prog, dst_reg, dst_reg, false);
+				EMIT2(0x85, add_2reg(0xC0, dst_reg, dst_reg));
+
+				/* cmove r11, dst_reg; if so, set dst_reg to zero */
+				/* WARNING: Intel swapped src/dst register encoding in CMOVcc !!! */
+				maybe_emit_mod(&prog, AUX_REG, dst_reg, true);
+				EMIT3(0x0F, 0x44, add_2reg(0xC0, AUX_REG, dst_reg));
+				break;
+			}
+			fallthrough;
 		case BPF_ALU | BPF_MOV | BPF_X:
 			if (insn->off == 0)
 				emit_mov_reg(&prog,
@@ -3430,6 +3465,11 @@ void bpf_arch_poke_desc_update(struct bpf_jit_poke_descriptor *poke,
 					   old_addr, NULL);
 		BUG_ON(ret < 0);
 	}
+}
+
+bool bpf_jit_supports_arena(void)
+{
+	return true;
 }
 
 bool bpf_jit_supports_ptr_xchg(void)
