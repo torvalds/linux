@@ -470,6 +470,14 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 			return ret;
 	}
 
+	if (rw == WRITE &&
+	    bch2_sb_member_get(sb, sb->dev_idx).seq != sb->seq) {
+		prt_printf(out, "Invalid superblock: member seq %llu != sb seq %llu",
+			   le64_to_cpu(bch2_sb_member_get(sb, sb->dev_idx).seq),
+			   le64_to_cpu(sb->seq));
+		return -BCH_ERR_invalid_sb_members_missing;
+	}
+
 	return 0;
 }
 
