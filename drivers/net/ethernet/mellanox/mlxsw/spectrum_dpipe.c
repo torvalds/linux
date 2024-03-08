@@ -1193,9 +1193,9 @@ static int mlxsw_sp_dpipe_table_adj_counters_update(void *priv, bool enable)
 		mlxsw_sp_nexthop_indexes(nh, &adj_index, &adj_size,
 					 &adj_hash_index);
 		if (enable)
-			mlxsw_sp_nexthop_counter_alloc(mlxsw_sp, nh);
+			mlxsw_sp_nexthop_counter_enable(mlxsw_sp, nh);
 		else
-			mlxsw_sp_nexthop_counter_free(mlxsw_sp, nh);
+			mlxsw_sp_nexthop_counter_disable(mlxsw_sp, nh);
 		mlxsw_sp_nexthop_eth_update(mlxsw_sp,
 					    adj_index + adj_hash_index, nh,
 					    true, ratr_pl);

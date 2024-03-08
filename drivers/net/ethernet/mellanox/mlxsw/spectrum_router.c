@@ -3151,8 +3151,8 @@ struct mlxsw_sp_nexthop_group {
 	bool can_destroy;
 };
 
-void mlxsw_sp_nexthop_counter_alloc(struct mlxsw_sp *mlxsw_sp,
-				    struct mlxsw_sp_nexthop *nh)
+void mlxsw_sp_nexthop_counter_enable(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_nexthop *nh)
 {
 	struct devlink *devlink;
 
@@ -3167,8 +3167,8 @@ void mlxsw_sp_nexthop_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 	nh->counter_valid = true;
 }
 
-void mlxsw_sp_nexthop_counter_free(struct mlxsw_sp *mlxsw_sp,
-				   struct mlxsw_sp_nexthop *nh)
+void mlxsw_sp_nexthop_counter_disable(struct mlxsw_sp *mlxsw_sp,
+				      struct mlxsw_sp_nexthop *nh)
 {
 	if (!nh->counter_valid)
 		return;
@@ -4507,7 +4507,7 @@ static int mlxsw_sp_nexthop4_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	mlxsw_sp_nexthop_counter_alloc(mlxsw_sp, nh);
+	mlxsw_sp_nexthop_counter_enable(mlxsw_sp, nh);
 	list_add_tail(&nh->router_list_node, &mlxsw_sp->router->nexthop_list);
 
 	if (!dev)
@@ -4531,7 +4531,7 @@ static int mlxsw_sp_nexthop4_init(struct mlxsw_sp *mlxsw_sp,
 
 err_nexthop_neigh_init:
 	list_del(&nh->router_list_node);
-	mlxsw_sp_nexthop_counter_free(mlxsw_sp, nh);
+	mlxsw_sp_nexthop_counter_disable(mlxsw_sp, nh);
 	mlxsw_sp_nexthop_remove(mlxsw_sp, nh);
 	return err;
 }
@@ -4541,7 +4541,7 @@ static void mlxsw_sp_nexthop4_fini(struct mlxsw_sp *mlxsw_sp,
 {
 	mlxsw_sp_nexthop_type_fini(mlxsw_sp, nh);
 	list_del(&nh->router_list_node);
-	mlxsw_sp_nexthop_counter_free(mlxsw_sp, nh);
+	mlxsw_sp_nexthop_counter_disable(mlxsw_sp, nh);
 	mlxsw_sp_nexthop_remove(mlxsw_sp, nh);
 }
 
@@ -5006,7 +5006,7 @@ mlxsw_sp_nexthop_obj_init(struct mlxsw_sp *mlxsw_sp,
 		break;
 	}
 
-	mlxsw_sp_nexthop_counter_alloc(mlxsw_sp, nh);
+	mlxsw_sp_nexthop_counter_enable(mlxsw_sp, nh);
 	list_add_tail(&nh->router_list_node, &mlxsw_sp->router->nexthop_list);
 	nh->ifindex = dev->ifindex;
 
@@ -5030,7 +5030,7 @@ mlxsw_sp_nexthop_obj_init(struct mlxsw_sp *mlxsw_sp,
 
 err_type_init:
 	list_del(&nh->router_list_node);
-	mlxsw_sp_nexthop_counter_free(mlxsw_sp, nh);
+	mlxsw_sp_nexthop_counter_disable(mlxsw_sp, nh);
 	return err;
 }
 
@@ -5041,7 +5041,7 @@ static void mlxsw_sp_nexthop_obj_fini(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_nexthop_obj_blackhole_fini(mlxsw_sp, nh);
 	mlxsw_sp_nexthop_type_fini(mlxsw_sp, nh);
 	list_del(&nh->router_list_node);
-	mlxsw_sp_nexthop_counter_free(mlxsw_sp, nh);
+	mlxsw_sp_nexthop_counter_disable(mlxsw_sp, nh);
 	nh->should_offload = 0;
 }
 
@@ -6734,7 +6734,7 @@ static int mlxsw_sp_nexthop6_init(struct mlxsw_sp *mlxsw_sp,
 #if IS_ENABLED(CONFIG_IPV6)
 	nh->neigh_tbl = &nd_tbl;
 #endif
-	mlxsw_sp_nexthop_counter_alloc(mlxsw_sp, nh);
+	mlxsw_sp_nexthop_counter_enable(mlxsw_sp, nh);
 
 	list_add_tail(&nh->router_list_node, &mlxsw_sp->router->nexthop_list);
 
@@ -6750,7 +6750,7 @@ static int mlxsw_sp_nexthop6_init(struct mlxsw_sp *mlxsw_sp,
 
 err_nexthop_type_init:
 	list_del(&nh->router_list_node);
-	mlxsw_sp_nexthop_counter_free(mlxsw_sp, nh);
+	mlxsw_sp_nexthop_counter_disable(mlxsw_sp, nh);
 	return err;
 }
 
@@ -6759,7 +6759,7 @@ static void mlxsw_sp_nexthop6_fini(struct mlxsw_sp *mlxsw_sp,
 {
 	mlxsw_sp_nexthop_type_fini(mlxsw_sp, nh);
 	list_del(&nh->router_list_node);
-	mlxsw_sp_nexthop_counter_free(mlxsw_sp, nh);
+	mlxsw_sp_nexthop_counter_disable(mlxsw_sp, nh);
 }
 
 static bool mlxsw_sp_rt6_is_gateway(const struct mlxsw_sp *mlxsw_sp,
