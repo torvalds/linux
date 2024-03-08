@@ -42,6 +42,7 @@
 #include <net/ip.h>
 #include <net/vxlan.h>
 #include <net/devlink.h>
+#include <net/rps.h>
 
 #include <linux/mlx4/driver.h>
 #include <linux/mlx4/device.h>

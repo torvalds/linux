@@ -9,6 +9,7 @@
 #include <net/ip6_checksum.h>
 #include <linux/skbuff.h>
 #include <net/udp.h>
+#include <net/hotdata.h>
 
 struct napi_gro_cb {
 	union {
@@ -446,7 +447,7 @@ static inline void gro_normal_one(struct napi_struct *napi, struct sk_buff *skb,
 {
 	list_add_tail(&skb->list, &napi->rx_list);
 	napi->rx_count += segs;
-	if (napi->rx_count >= READ_ONCE(gro_normal_batch))
+	if (napi->rx_count >= READ_ONCE(net_hotdata.gro_normal_batch))
 		gro_normal_list(napi);
 }
 
@@ -492,7 +493,5 @@ static inline void inet6_get_iif_sdif(const struct sk_buff *skb, int *iif, int *
 	}
 #endif
 }
-
-extern struct list_head offload_base;
 
 #endif /* _NET_IPV6_GRO_H */
