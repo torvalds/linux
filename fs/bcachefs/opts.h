@@ -290,6 +290,11 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Allow mounting in when data will be missing")	\
+	x(no_splitbrain_check,		u8,				\
+	  OPT_FS|OPT_MOUNT,						\
+	  OPT_BOOL(),							\
+	  BCH2_NO_SB_OPT,		false,				\
+	  NULL,		"Don't kick drives out when splitbrain detected")\
 	x(discard,			u8,				\
 	  OPT_FS|OPT_MOUNT|OPT_DEVICE,					\
 	  OPT_BOOL(),							\

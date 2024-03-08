@@ -1061,7 +1061,8 @@ static int bch2_dev_may_add(struct bch_sb *sb, struct bch_fs *c)
 }
 
 static int bch2_dev_in_fs(struct bch_sb_handle *fs,
-			  struct bch_sb_handle *sb)
+			  struct bch_sb_handle *sb,
+			  struct bch_opts *opts)
 {
 	if (fs == sb)
 		return 0;
@@ -1102,11 +1103,14 @@ static int bch2_dev_in_fs(struct bch_sb_handle *fs,
 		bch2_prt_datetime(&buf, le64_to_cpu(sb->sb->write_time));;
 		prt_newline(&buf);
 
-		prt_printf(&buf, "Not using older sb");
+		if (!opts->no_splitbrain_check)
+			prt_printf(&buf, "Not using older sb");
 
 		pr_err("%s", buf.buf);
 		printbuf_exit(&buf);
-		return -BCH_ERR_device_splitbrain;
+
+		if (!opts->no_splitbrain_check)
+			return -BCH_ERR_device_splitbrain;
 	}
 
 	struct bch_member m = bch2_sb_member_get(fs->sb, sb->sb->dev_idx);
@@ -1129,12 +1133,17 @@ static int bch2_dev_in_fs(struct bch_sb_handle *fs,
 		prt_printf(&buf, " to be %llu, but ", seq_from_fs);
 		prt_bdevname(&buf, sb->bdev);
 		prt_printf(&buf, " has %llu\n", seq_from_member);
-		prt_str(&buf, "Not using ");
-		prt_bdevname(&buf, sb->bdev);
+
+		if (!opts->no_splitbrain_check) {
+			prt_str(&buf, "Not using ");
+			prt_bdevname(&buf, sb->bdev);
+		}
 
 		pr_err("%s", buf.buf);
 		printbuf_exit(&buf);
-		return -BCH_ERR_device_splitbrain;
+
+		if (!opts->no_splitbrain_check)
+			return -BCH_ERR_device_splitbrain;
 	}
 
 	return 0;
@@ -1835,7 +1844,7 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 
 	dev_idx = sb.sb->dev_idx;
 
-	ret = bch2_dev_in_fs(&c->disk_sb, &sb);
+	ret = bch2_dev_in_fs(&c->disk_sb, &sb, &c->opts);
 	bch_err_msg(c, ret, "bringing %s online", path);
 	if (ret)
 		goto err;
@@ -2023,7 +2032,7 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 			best = sb;
 
 	darray_for_each_reverse(sbs, sb) {
-		ret = bch2_dev_in_fs(best, sb);
+		ret = bch2_dev_in_fs(best, sb, &opts);
 
 		if (ret == -BCH_ERR_device_has_been_removed ||
 		    ret == -BCH_ERR_device_splitbrain) {
