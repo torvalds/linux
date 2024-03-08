@@ -418,6 +418,7 @@ class SpecFamily(SpecElement):
         consts     dict of all constants/enums
         fixed_header  string, optional name of family default fixed header struct
         mcast_groups  dict of all multicast groups (index by name)
+        kernel_family   dict of kernel family attributes
     """
     def __init__(self, spec_path, schema_path=None, exclude_ops=None):
         with open(spec_path, "r") as stream:
@@ -461,6 +462,7 @@ class SpecFamily(SpecElement):
         self.ntfs = collections.OrderedDict()
         self.consts = collections.OrderedDict()
         self.mcast_groups = collections.OrderedDict()
+        self.kernel_family = collections.OrderedDict(self.yaml.get('kernel-family', {}))
 
         last_exception = None
         while len(self._resolution_list) > 0:

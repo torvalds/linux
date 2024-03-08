@@ -378,3 +378,22 @@ properties:
               type: string
             # End genetlink-c
             flags: *cmd_flags
+
+  kernel-family:
+    description: Additional global attributes used for kernel C code generation.
+    type: object
+    additionalProperties: False
+    properties:
+      headers:
+        description: |
+          List of extra headers which should be included in the source
+          of the generated code.
+        type: array
+        items:
+          type: string
+      sock-priv:
+        description: |
+          Literal name of the type which is used within the kernel
+          to store the socket state. The type / structure is internal
+          to the kernel, and is not defined in the spec.
+        type: string

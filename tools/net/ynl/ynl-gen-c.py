@@ -2342,6 +2342,10 @@ def print_kernel_family_struct_hdr(family, cw):
 
     cw.p(f"extern struct genl_family {family.c_name}_nl_family;")
     cw.nl()
+    if 'sock-priv' in family.kernel_family:
+        cw.p(f'void {family.c_name}_nl_sock_priv_init({family.kernel_family["sock-priv"]} *priv);')
+        cw.p(f'void {family.c_name}_nl_sock_priv_destroy({family.kernel_family["sock-priv"]} *priv);')
+        cw.nl()
 
 
 def print_kernel_family_struct_src(family, cw):
@@ -2363,6 +2367,11 @@ def print_kernel_family_struct_src(family, cw):
     if family.mcgrps['list']:
         cw.p(f'.mcgrps\t\t= {family.c_name}_nl_mcgrps,')
         cw.p(f'.n_mcgrps\t= ARRAY_SIZE({family.c_name}_nl_mcgrps),')
+    if 'sock-priv' in family.kernel_family:
+        cw.p(f'.sock_priv_size\t= sizeof({family.kernel_family["sock-priv"]}),')
+        # Force cast here, actual helpers take pointer to the real type.
+        cw.p(f'.sock_priv_init\t= (void *){family.c_name}_nl_sock_priv_init,')
+        cw.p(f'.sock_priv_destroy = (void *){family.c_name}_nl_sock_priv_destroy,')
     cw.block_end(';')
 
 
@@ -2659,6 +2668,7 @@ def main():
                 cw.p(f'#include "{os.path.basename(args.out_file[:-2])}.h"')
             cw.nl()
         headers = ['uapi/' + parsed.uapi_header]
+        headers += parsed.kernel_family.get('headers', [])
     else:
         cw.p('#include <stdlib.h>')
         cw.p('#include <string.h>')
