@@ -2400,15 +2400,10 @@ static int __init ap_module_init(void)
 		ap_domain_index = -1;
 	}
 
-	/* enable interrupts if available */
-	rc = ap_irq_init();
-	if (rc)
-		goto out;
-
 	/* Create /sys/bus/ap. */
 	rc = bus_register(&ap_bus_type);
 	if (rc)
-		goto out_irq;
+		goto out;
 
 	/* Create /sys/devices/ap. */
 	ap_root_device = root_device_register("ap");
@@ -2417,19 +2412,24 @@ static int __init ap_module_init(void)
 		goto out_bus;
 	ap_root_device->bus = &ap_bus_type;
 
-	/* Setup asynchronous work (timers, workqueue, etc). */
-	rc = ap_async_init();
+	/* enable interrupts if available */
+	rc = ap_irq_init();
 	if (rc)
 		goto out_device;
 
+	/* Setup asynchronous work (timers, workqueue, etc). */
+	rc = ap_async_init();
+	if (rc)
+		goto out_irq;
+
 	return 0;
 
+out_irq:
+	ap_irq_exit();
 out_device:
 	root_device_unregister(ap_root_device);
 out_bus:
 	bus_unregister(&ap_bus_type);
-out_irq:
-	ap_irq_exit();
 out:
 	ap_debug_exit();
 	return rc;
