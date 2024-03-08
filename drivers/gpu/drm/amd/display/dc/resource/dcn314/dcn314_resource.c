@@ -925,6 +925,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	},
 
 	.seamless_boot_odm_combine = true,
+	.enable_legacy_fast_update = true,
 	.using_dml2 = false,
 };
 
